@@ -1,5 +1,8 @@
+import { ObjectId } from "mongoose";
+import { VerificationStatus } from "../../constants/varificationStatus";
+
 export interface userPayload{
-    id:string;
+    id:ObjectId;
     name:string;
     phone?:string;
     email:string;
@@ -11,7 +14,7 @@ export interface userPayload{
 
 
 export interface mentorPayload{
-    id:string;
+    id:ObjectId;
     name:string;
     email:string;
     isActive:boolean;

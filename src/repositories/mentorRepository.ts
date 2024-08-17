@@ -1,5 +1,7 @@
+import { MentorVerifyData } from "../interfaces/servicesInterfaces/IMentor";
 import Mentor, { IMentor } from "../models/mentorModel";
-import MentorTempModel, { IMentorSchema } from "../models/TempregisterMentor";
+import MentorVerifyModel from "../models/mentorValidate";
+import MentorTempModel, { IMentorSchema } from "../models/tempregisterMentor";
 import HashedPassword from "../utils/hashedPassword";
 import { generateOTP, sendVerifyMail } from "../utils/mail";
 
@@ -25,6 +27,7 @@ class MentorRepository {
 				password: hashedPassword,
 				otp: otp,
 				isActive: mentorData.isActive ?? false,
+				
 			};
 
 			const options = {
@@ -72,6 +75,7 @@ class MentorRepository {
 				password: mentorData.password,
 				isActive: true,
 				isAdmin: false,
+				isVerified:"biginner"
 			});
 
 			const savedmentor = await newMentor.save();
@@ -105,6 +109,72 @@ class MentorRepository {
 				console.log("An unknown error has occurred");
 			}
 			throw error;
+		}
+	}
+
+	async isVerifiedMentor(id:string):Promise<string | undefined>{
+		try{
+			const mentorData = await Mentor.findById({_id:id})
+			console.log(mentorData)
+			return mentorData?.isVerified
+		}catch(error){
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.log("An unknown error has occurred");
+			}
+			throw error;
+		}
+	}
+
+	async verifyMentor(mentorData:MentorVerifyData,id:string): Promise<boolean | undefined>{
+		try{
+			let userData = await Mentor.findById(id);
+			if (!mentorData || !id) {
+			throw new Error("Not able to verify your account now, please try again after sometime.");
+			}
+			const verifyMentorData = new MentorVerifyModel({
+				mentorId: userData ? userData._id : undefined,
+				name: mentorData.name,
+				dateOfBirth: mentorData.dateOfBirth,
+				preferredLanguage: mentorData.preferredLanguage,
+				email: mentorData.email,
+				degree: mentorData.degree,   
+				college: mentorData.college,  
+				yearOfGraduation: mentorData.yearOfGraduation, 
+				jobTitle: mentorData.jobTitle, 
+				lastWorkedCompany: mentorData.lastWorkedCompany, 
+				yearsOfExperience: mentorData.yearsOfExperience, 
+				stack: mentorData.stack, 
+				resume: mentorData.fileUrls.resume,
+				degreeCertificate: mentorData.fileUrls.degreeCertificate,
+				experienceCertificate: mentorData.fileUrls.experienceCertificate,
+				isVerified: false,
+			});
+			await verifyMentorData.save();
+			if(verifyMentorData){
+				return true
+			}else{
+				return false
+			}
+		}catch(error){
+			if(error instanceof Error){
+				console.log(error.message)
+			}
+		}
+	}
+
+	async findMentorBtId(id:string):Promise<IMentor | undefined>{
+		try{
+			const mentorData = await Mentor.findById({_id:id})
+			if(!mentorData){
+				throw new Error("Mentor do not exist")
+			}
+			return mentorData
+		}catch(error){
+			if(error instanceof Error){
+				console.log(error.message)
+			}
 		}
 	}
 }

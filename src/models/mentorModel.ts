@@ -1,10 +1,12 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema } from 'mongoose';
+import { VerificationStatuses, VerificationStatus } from '../constants/varificationStatus'; 
 
 export interface IMentor extends Document {
   name: string;
   email: string;
   password: string;
   isActive: boolean;
+  isVerified?: VerificationStatus; 
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -28,9 +30,10 @@ const mentorSchema: Schema = new Schema(
       type: Boolean,
       required: true,
     },
-    isAdmin: {
-      type: Boolean,
-      required: true,
+    isVerified: {
+      type: String,
+      enum: Object.values(VerificationStatuses),
+      default: VerificationStatuses.APPLIED,
     },
   },
   {
@@ -38,6 +41,6 @@ const mentorSchema: Schema = new Schema(
   }
 );
 
-const Mentor = mongoose.model<IMentor>("Mentor", mentorSchema);
+const Mentor = mongoose.model<IMentor>('Mentor', mentorSchema);
 
 export default Mentor;

@@ -8,7 +8,7 @@ const accessTokenSecret = process.env.ACCESS_TOKEN_PRIVATE_KEY as string;
 const refreshTokenSecret = process.env.REFRESH_TOKEN_PRIVATE_KEY as string;
 
 export const generateAccessToken = (user: userPayload) => {
-  return jwt.sign(user, accessTokenSecret, { expiresIn: "1h" });
+  return jwt.sign(user, accessTokenSecret, { expiresIn: "7h" });
 };
 
 export const generateRefreshToken = (user: userPayload) => {

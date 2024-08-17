@@ -2,12 +2,18 @@ import {
 	IOtpVerify,
 	TokenResponce,
 } from "../interfaces/servicesInterfaces/IMentee";
-import { IMentor } from "../models/mentorModel";
+import Mentor, { IMentor } from "../models/mentorModel";
 import MentorRepository from "../repositories/mentorRepository";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import { mentorPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
-import { IMentorLogin } from "../interfaces/servicesInterfaces/IMentor";
+import { IMentorLogin, MentorVerifyData, MentorVerifyFiles } from "../interfaces/servicesInterfaces/IMentor";
 import HashedPassword from "../utils/hashedPassword";
+import mongoose, { ObjectId } from 'mongoose'; 
+import dotenv from "dotenv";
+import MentorVerifyModel from "../models/mentorValidate";
+import jwt, { JwtPayload } from 'jsonwebtoken';
+
+dotenv.config();
 
 class MentorService {
 	constructor(private mentorRepository: MentorRepository) {}
@@ -41,9 +47,6 @@ class MentorService {
 				otpData.otp
 			);
 
-			if (!isOtpVerify) {
-				throw new Error("OTP verification failed");
-			}
 			const mentorPayload: mentorPayload = {
 				id: isOtpVerify.id,
 				name: isOtpVerify.name,
@@ -83,48 +86,117 @@ class MentorService {
 		}
 	}
 
-	async mentorLogin(mentorData: Partial<IMentorLogin>): Promise<TokenResponce | null | undefined> {
+	async mentorLogin(
+		mentorData: Partial<IMentorLogin>
+	): Promise<TokenResponce | null | undefined> {
 		if (!mentorData.email || !mentorData.password) {
-		  throw new Error("Email and password are required");
+			throw new Error("Email and password are required");
 		}
 		try {
-		  const mentorResponse = await this.mentorRepository.findMentorByEmail(
-			mentorData.email
-		  );
-		  if (!mentorResponse) {
-			throw new Error("User does not exist");
-		  }
-		  if (mentorResponse.password) {
-			  const isPasswordValid = await HashedPassword.comparePassword(
-				mentorData.password,
-				mentorResponse.password
-			  );
-			  if (isPasswordValid) {
-				  const userPayload : mentorPayload = {
-					id: mentorResponse.id,
-					name: mentorResponse.name,
-					email: mentorResponse.email,
-					isActive: mentorResponse.isActive,
-				  };
-				  console.log(userPayload)
-				  let accessToken = generateAccessToken(userPayload)
-				  let refreshToken = generateRefreshToken(userPayload)
-				  return {accessToken,refreshToken}
-			  } else {
-			  throw new Error("Invalid password");
-			  }
-		  } else {
-			throw new Error("Password is missing for the user");
-		  }
+			const mentorResponse = await this.mentorRepository.findMentorByEmail(
+				mentorData.email
+			);
+			if (!mentorResponse) {
+				throw new Error("User does not exist");
+			}
+			if (mentorResponse.password) {
+				const isPasswordValid = await HashedPassword.comparePassword(
+					mentorData.password, 
+					mentorResponse.password
+				);
+				if (isPasswordValid) {
+					const userPayload: mentorPayload = {
+						id: mentorResponse._id as ObjectId,
+						name: mentorResponse.name,
+						email: mentorResponse.email,
+						isActive: mentorResponse.isActive,
+					};
+					let accessToken = generateAccessToken(userPayload);
+					let refreshToken = generateRefreshToken(userPayload);
+					return { accessToken, refreshToken };
+				} else {
+					throw new Error("Invalid password");
+				}
+			} else {
+				throw new Error("Password is missing for the user");
+			}
 		} catch (error: unknown) {
-		  if (error instanceof Error) {
-			console.error(error.message);
-		  } else {
-			console.error("An unknown error occurred");
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+
+	async isVerifiedMentor(accessToken:string):Promise<string | undefined>{
+		try{
+			if (accessToken.startsWith("Bearer ")) {
+				accessToken = accessToken.split(" ")[1];
+			}
+			const decoded = jwt.verify(accessToken,process.env.ACCESS_TOKEN_PRIVATE_KEY as string) as JwtPayload
+			console.log(decoded)
+			const {id} = decoded 
+			const mentorData = await this.mentorRepository.isVerifiedMentor(id)
+			return mentorData
+		}catch(error){
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+
+	async verifyMentor(mentorData: MentorVerifyData, token: string): Promise<boolean | undefined> {
+		try {
+		  const tokenData = jwt.verify(token,process.env.ACCESS_TOKEN_PRIVATE_KEY as string) as mentorPayload;
+		  const id = tokenData.id as unknown as string
+		  const verifyMentorData = await this.mentorRepository.verifyMentor(mentorData,id)
+		  if(verifyMentorData){
+			return true
+		  }else{
+			return false
 		  }
-		  throw error;
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.error('Error verifying mentor:', error.message);
+		  } else {
+			console.error('Unknown error during mentor verification:', error);
+		  }
 		}
 	  }
+
+
+
+	async  createNewRefreshToken(refreshTokenData: string): Promise<TokenResponce> {
+		try {
+			const decoded = jwt.verify(refreshTokenData, process.env.REFRESH_TOKEN_PRIVATE_KEY as string) as JwtPayload;
+			const { id } = decoded;
+			console.log(id);
+			const isMentor = await this.mentorRepository.findMentorBtId(id)
+			if(!isMentor) {
+				throw new Error("Mentor not found")
+			}
+			const userPayload: mentorPayload = {
+				id: isMentor._id as ObjectId,
+				name: isMentor.name,
+				email: isMentor.email,
+				isActive: isMentor.isActive,
+			};
+			const accessToken = generateAccessToken(userPayload)
+			const refreshToken = generateRefreshToken(userPayload)
+			return { accessToken, refreshToken };
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error('Failed to create new refresh token');
+		}
+	}
+
 }
 
 export default MentorService;
