@@ -29,3 +29,11 @@ export interface MentorVerifyData {
     degreeCertificate?: Express.Multer.File;
     experienceCertificate?: Express.Multer.File;
   }
+
+
+  export interface ISlotsList {
+    date:Date;
+    startTime:String;
+    endTime:String;
+    id:string;
+  }

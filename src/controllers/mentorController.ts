@@ -109,20 +109,68 @@ class MentorController{
         }
     }
 
+
+    async resetWithEmail(req: Request, res: Response): Promise<void> {
+        try {
+            const email = req.body.email;
+            if (!email) {
+                res.status(400).json({ message: "Email is required." });
+                return;
+            }
+            const verifyEmail = await this.mentorService.resetWithEmail(email);
+            if(verifyEmail){
+                res.status(200).json({ message:"Password reset link sent to your email." });
+            }
+        } catch (error : unknown) {
+            if(error instanceof Error){
+                if(error.message == 'Email does not exist.'){
+                    res.status(400).json({message:'Email does not exist.'})
+                }else{
+                    res.status(500).json({ message: "An error occurred while processing your request." });
+                }
+            }
+        }
+
+        
+    }
+
+    async resetPassswordOtp(req:Request,res:Response):Promise<void>{
+        try{
+            const otpData = req.body;
+            if (!otpData.email || !otpData.otp) {
+            res.status(400).json({ message: 'Email and OTP are required' });
+            return;
+            }
+            const otpVerified = await this.mentorService.forgetPasswordVerifyOtp(otpData);
+            if (otpVerified) {
+                res.status(200).json({ message: 'OTP verified successfully',email:otpVerified.email});
+            } else {
+                res.status(401).json({ message: 'Invalid OTP ' });
+            }
+        }catch(error:unknown){
+            if(error instanceof Error){
+                if(error.message == 'Email or OTP is missing'){
+                    res.status(401).json({message:'OTP is missing.'})
+                }else if(error.message == 'OTP verification failed'){
+                    res.status(401).json({ message: 'Invalid OTP ' });
+                }
+            }
+        }
+    }
+
+
     async verifyCheck(req:Request,res:Response):Promise<void>{
         try{
             const accessToken = req.headers['authorization'] as string;
             const mentorData = await this.mentorService.isVerifiedMentor(accessToken)
-            if(mentorData == "biginner"){
-                res.status(200).json({message:"Mentor is a biginner.",mentorData})
+            if(mentorData == "beginner"){
+                res.status(200).json({message:"Mentor is a beginner.",mentorData})
             }else if(mentorData == "applied"){
                 res.status(200).json({message:"Mentor is a applied.",mentorData})
             }else if(mentorData == "verified"){
                 res.status(200).json({message:"Mentor is a verified.",mentorData})
             }else if(mentorData == "rejected"){
                 res.status(200).json({message:"Mentor is a rejected.",mentorData})
-            }else{
-                res.status(500).json({ message: 'something went wrong plese try again.' });
             }
         }catch(error){
             if(error instanceof Error){
@@ -181,7 +229,6 @@ class MentorController{
                 experienceCertificate: null
             });
     
-            console.log('Uploaded file URLs:', fileUrls);
     
             const isverifird = await this.mentorService.verifyMentor({ ...mentorData, fileUrls }, token);
             await Promise.all(
@@ -222,15 +269,89 @@ class MentorController{
             const response = await this.mentorService.createNewRefreshToken(refreshToken)
             if(response){
                 res.status(201).json({message:"Success",accessToken:response.accessToken,refreshToken:response.refreshToken})
+            }else{
+                res.status(500).json({ message: 'Internal server error' });
             }
         }catch(error){
-            if(error instanceof Error){
-                console.log(error.message)
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during refreshing token:', error);
+                res.status(500).json({ message: 'Internal server error' });
             }
         }
     }
     
+
+    async scheduleTimeForMentor(req:Request,res:Response):Promise<void>{
+        try{
+            if (!req.file) {
+                res.status(400).json({ message: 'No file uploaded.' });
+                return;
+            }
+            const accessToken = req.headers['authorization'] as string;
+            const image = req.file.path
+            const imageData = await cloudinary.uploader.upload(image);
+            const scheduleData = req.body
+            const scheduleTime = await this.mentorService.scheduleTimeForMentor(scheduleData,imageData.secure_url,accessToken)
+           if(scheduleTime){
+            res.status(200).json({message:"Time scheduled successfully."})
+           }else{
+            res.status(500).json({message:"unable to schedule time at this moment."})
+           }
+        }catch(error){
+            if (error instanceof Error) {
+                if(error.message == "The time slot overlaps with an existing schedule."){
+                    res.status(409).json({message:"The time slot can't  be booked because you already booked time on the provided time."})
+                }else{
+                    console.error('Error during time sheduling:', error.message);
+                    res.status(500).json({ message: error.message });
+                }
+            } else {
+                console.error('Unknown error time sheduling:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
     
+
+    async getScheduledSlots(req:Request,res:Response):Promise<void>{
+        try{
+            const accessToken = req.headers['authorization'] as string
+           const slotsData = await this.mentorService.getScheduledSlots(accessToken)
+           console.log(slotsData)
+            res.status(200).json({message:"Slots sent successfully" , sloteData:slotsData})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  getting slots:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async deleteScheduledSlot(req:Request,res:Response):Promise<void>{
+        try{
+            const { id } = req.params
+           const slotsData = await this.mentorService.deleteScheduledSlot(id)
+           if(slotsData){
+            res.status(200).json({message:"Slots deleted successfully" })
+           }else{
+            res.status(401).json({message:"Unknown error during  removing slots." })
+           }
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  removing slots:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
     
     
     

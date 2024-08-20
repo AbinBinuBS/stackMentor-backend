@@ -6,12 +6,19 @@ import Mentor, { IMentor } from "../models/mentorModel";
 import MentorRepository from "../repositories/mentorRepository";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import { mentorPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
-import { IMentorLogin, MentorVerifyData, MentorVerifyFiles } from "../interfaces/servicesInterfaces/IMentor";
+import {
+	IMentorLogin,
+	ISlotsList,
+	MentorVerifyData,
+	MentorVerifyFiles,
+} from "../interfaces/servicesInterfaces/IMentor";
 import HashedPassword from "../utils/hashedPassword";
-import mongoose, { ObjectId } from 'mongoose'; 
+import mongoose, { ObjectId } from "mongoose";
 import dotenv from "dotenv";
 import MentorVerifyModel from "../models/mentorValidate";
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import jwt, { JwtPayload } from "jsonwebtoken";
+import { IScheduleTime } from "../models/mentorTimeSchedule";
+import { JWT_SECRET } from "../config/middilewareConfig";
 
 dotenv.config();
 
@@ -99,9 +106,12 @@ class MentorService {
 			if (!mentorResponse) {
 				throw new Error("User does not exist");
 			}
+			if (!mentorResponse.isActive) {
+				throw new Error("Mentor is temporarily blocked.");
+			}
 			if (mentorResponse.password) {
 				const isPasswordValid = await HashedPassword.comparePassword(
-					mentorData.password, 
+					mentorData.password,
 					mentorResponse.password
 				);
 				if (isPasswordValid) {
@@ -130,17 +140,63 @@ class MentorService {
 		}
 	}
 
-	async isVerifiedMentor(accessToken:string):Promise<string | undefined>{
+
+	async resetWithEmail(email: string): Promise<IMentor | undefined> {
+		try {
+			const emailData = await this.mentorRepository.findMentorByEmail(email);
+			if (!emailData) {
+				throw new Error("Email does not exist.");
+			}
+	
+			const savedEmailData = await this.mentorRepository.forgotPasswordWithEmail(emailData);
+			return savedEmailData
+		} catch (error) {
+			console.error("Error in resetWithEmail:", error);
+			throw new Error("Unable to reset password."); 
+		}
+	  }
+
+	  async forgetPasswordVerifyOtp(otpData: Partial<IOtpVerify>) : Promise<IMentor | undefined>{
 		try{
+		  if (!otpData.email || !otpData.otp) {
+			throw new Error("Email or OTP is missing");
+		  }
+		  const isOtpVerify = await this.mentorRepository.forgetPasswordVerifyOtp(
+			otpData.email,
+			otpData.otp
+		  );
+	
+		  if (!isOtpVerify) {
+			throw new Error("OTP verification failed");
+		  }
+		  return isOtpVerify
+		}catch(error){
+		  if (error instanceof Error) {
+			console.error(error.message);
+			throw new Error("Unable to verify otp at this moment")
+		  } else {
+			console.error("Error verifying OTP:", error);
+			throw new Error("Unable to verify otp at this moment")
+		  }
+		}
+	  }
+
+
+
+	async isVerifiedMentor(accessToken: string): Promise<string | undefined> {
+		try {
 			if (accessToken.startsWith("Bearer ")) {
 				accessToken = accessToken.split(" ")[1];
 			}
-			const decoded = jwt.verify(accessToken,process.env.ACCESS_TOKEN_PRIVATE_KEY as string) as JwtPayload
-			console.log(decoded)
-			const {id} = decoded 
-			const mentorData = await this.mentorRepository.isVerifiedMentor(id)
-			return mentorData
-		}catch(error){
+			const decoded = jwt.verify(
+				accessToken,
+				process.env.ACCESS_TOKEN_PRIVATE_KEY as string
+			) as JwtPayload;
+			console.log(decoded);
+			const { id } = decoded;
+			const mentorData = await this.mentorRepository.isVerifiedMentor(id);
+			return mentorData;
+		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
 			} else {
@@ -150,35 +206,47 @@ class MentorService {
 		}
 	}
 
-	async verifyMentor(mentorData: MentorVerifyData, token: string): Promise<boolean | undefined> {
+	async verifyMentor(
+		mentorData: MentorVerifyData,
+		token: string
+	): Promise<boolean | undefined> {
 		try {
-		  const tokenData = jwt.verify(token,process.env.ACCESS_TOKEN_PRIVATE_KEY as string) as mentorPayload;
-		  const id = tokenData.id as unknown as string
-		  const verifyMentorData = await this.mentorRepository.verifyMentor(mentorData,id)
-		  if(verifyMentorData){
-			return true
-		  }else{
-			return false
-		  }
+			const tokenData = jwt.verify(
+				token,
+				process.env.ACCESS_TOKEN_PRIVATE_KEY as string
+			) as mentorPayload;
+			const id = tokenData.id as unknown as string;
+			const verifyMentorData = await this.mentorRepository.verifyMentor(
+				mentorData,
+				id
+			);
+			if (verifyMentorData) {
+				return true;
+			} else {
+				return false;
+			}
 		} catch (error) {
-		  if (error instanceof Error) {
-			console.error('Error verifying mentor:', error.message);
-		  } else {
-			console.error('Unknown error during mentor verification:', error);
-		  }
+			if (error instanceof Error) {
+				console.error("Error verifying mentor:", error.message);
+			} else {
+				console.error("Unknown error during mentor verification:", error);
+			}
 		}
-	  }
+	}
 
-
-
-	async  createNewRefreshToken(refreshTokenData: string): Promise<TokenResponce> {
+	async createNewRefreshToken(
+		refreshTokenData: string
+	): Promise<TokenResponce> {
 		try {
-			const decoded = jwt.verify(refreshTokenData, process.env.REFRESH_TOKEN_PRIVATE_KEY as string) as JwtPayload;
+			const decoded = jwt.verify(
+				refreshTokenData,
+				process.env.REFRESH_TOKEN_PRIVATE_KEY as string
+			) as JwtPayload;
 			const { id } = decoded;
 			console.log(id);
-			const isMentor = await this.mentorRepository.findMentorBtId(id)
-			if(!isMentor) {
-				throw new Error("Mentor not found")
+			const isMentor = await this.mentorRepository.findMentorBtId(id);
+			if (!isMentor) {
+				throw new Error("Mentor not found");
 			}
 			const userPayload: mentorPayload = {
 				id: isMentor._id as ObjectId,
@@ -186,17 +254,88 @@ class MentorService {
 				email: isMentor.email,
 				isActive: isMentor.isActive,
 			};
-			const accessToken = generateAccessToken(userPayload)
-			const refreshToken = generateRefreshToken(userPayload)
+			const accessToken = generateAccessToken(userPayload);
+			const refreshToken = generateRefreshToken(userPayload);
 			return { accessToken, refreshToken };
 		} catch (error) {
 			if (error instanceof Error) {
 				console.log(error.message);
 			}
-			throw new Error('Failed to create new refresh token');
+			throw new Error("Failed to create new refresh token");
 		}
 	}
 
+	async scheduleTimeForMentor(
+		scheduleData: IScheduleTime,
+		image: string,
+		accessToken: string
+	): Promise<IScheduleTime | undefined> {
+		try {
+			if (accessToken.startsWith("Bearer ")) {
+				accessToken = accessToken.split(" ")[1];
+			}
+			const decoded = jwt.verify(
+				accessToken,
+				JWT_SECRET as string
+			) as JwtPayload;
+			const { id } = decoded;
+			const scheduleTime = await this.mentorRepository.scheduleTimeForMentor(
+				scheduleData,
+				image,
+				id
+			);
+			return scheduleTime;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error("Error schedule time :", error.message);
+				throw new Error(error.message); 
+			} else {
+				console.error("Unknown error during scheduling time:", error);
+			}
+		}
+	}
+
+	async getScheduledSlots(accessToken:string): Promise< ISlotsList[] | undefined> {
+		try {
+			if (accessToken.startsWith("Bearer ")) {
+				accessToken = accessToken.split(" ")[1];
+			}
+			const decoded = jwt.verify(
+				accessToken,
+				JWT_SECRET as string
+			) as JwtPayload;
+			const { id } = decoded;
+			const getSlots = await this.mentorRepository.getScheduledSlots(id)
+			return getSlots
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+
+	async deleteScheduledSlot(id:string): Promise< boolean> {
+		try {
+			const deleteSlot = await this.mentorRepository.deleteScheduledSlot(id)
+			if(deleteSlot){
+				return true
+			}else{
+				return false
+			}
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+
+	
 }
 
 export default MentorService;
