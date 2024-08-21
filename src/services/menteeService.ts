@@ -40,6 +40,9 @@ class MenteeService {
       if (!menteeResponse) {
         throw new Error("User does not exist");
       }
+      if(!menteeResponse.isActive){
+        throw new Error("User is blocked ");
+      }
       if (menteeResponse.password) {
           const isPasswordValid = await HashedPassword.comparePassword(
             menteeData.password,

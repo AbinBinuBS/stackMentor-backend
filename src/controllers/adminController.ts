@@ -47,7 +47,6 @@ class adminController {
         try{
             const id = req.body.id
             const active = req.body.isActive
-            console.log("1111111111111111111111111",req.body)
             const blocked = await this.adminService.blockMentor(id,active)
             if(blocked){
                 res.status(200).json({message:"Mentor unblocked successfully."})

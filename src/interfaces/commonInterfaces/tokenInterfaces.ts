@@ -21,3 +21,13 @@ export interface mentorPayload{
     createdAt?: Date;
     updatedAt?: Date;
 }
+
+
+export interface adminPayload{
+    id:ObjectId;
+    name:string;
+    email:string;
+    isActive:boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+}

@@ -1,33 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../utils/jwtToken';
-import AdminModel from '../models/menteeModel';  
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../config/middilewareConfig';
+import { adminPayload } from '../interfaces/commonInterfaces/tokenInterfaces';
 
-
-export const adminAuthMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const adminAuthMiddleware = (req: Request, res: Response, next: NextFunction): Response | void => {
     const token = req.header('Authorization')?.split(' ')[1];
-    
     if (!token) {
-        res.status(401).json({ message: '401' });
-        return;
+        return res.status(401).json({ message: 'Unauthorized, token is missing' });
     }
 
-    const admin = verifyToken(token);
-    
-    if (admin == null) {
-        res.status(401).json({ message: '401' });
-        return;
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as adminPayload;
+
+        (req as any).admin = decoded;
+
+        next();
+    } catch (err) {
+        if (err instanceof jwt.TokenExpiredError) {
+            return res.status(401).json({ message: 'Unauthorized, token has expired' });
+        }
+
+        return res.status(401).json({ message: 'Unauthorized, invalid token' });
     }
-
-    const adminData = await AdminModel.findOne({ email: admin.email });
-
-    if (!adminData) {
-        res.status(403).json({ message: '403' });
-        return;
-    } else if (adminData?.isActive === false) {  
-        res.status(401).json({ message: 'Your account has been blocked by admin!' });
-        return;
-    }
-
-    (req as any).admin = admin;
-    next();
 };
+
+export default adminAuthMiddleware;

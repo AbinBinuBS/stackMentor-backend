@@ -1,6 +1,6 @@
 
 export const VerificationStatuses = {
-    BIGINNER: "biginner",
+    BIGINNER: "beginner",
     APPLIED: 'applied',
     VERIFIED: 'verified',
     REJECTED: 'rejected',

@@ -173,9 +173,34 @@ class MentorRepository {
 		}
 	}
 
+	async reserPassword(
+		email: string,
+		password: string
+	): Promise<boolean | undefined> {
+		try {
+			const mentor = await Mentor.findOne({ email });
+			if (!mentor) {
+				console.error("Mentor not found");
+				return false;
+			}
+			const hashedPassword = await HashedPassword.hashPassword(password);
+
+			mentor.password = hashedPassword;
+			await mentor.save();
+
+			return true;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.log("an unknown error has been occured");
+			}
+			throw error;
+		}
+	}
+
 	async isVerifiedMentor(id: string): Promise<string | undefined> {
 		try {
-			console.log("33333333333333333333333333333333333333333333");
 			const mentorData = await Mentor.findById({ _id: id });
 			console.log(mentorData);
 			return mentorData?.isVerified;
@@ -323,7 +348,6 @@ class MentorRepository {
 	}
 
 	async deleteScheduledSlot(id: string): Promise<boolean> {
-		console.log("4444444444444444444444444444",id)
 		if (!Types.ObjectId.isValid(id)) {
 			console.error("Invalid ID format");
 			return false;

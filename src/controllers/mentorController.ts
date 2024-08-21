@@ -128,6 +128,8 @@ class MentorController{
                 }else{
                     res.status(500).json({ message: "An error occurred while processing your request." });
                 }
+            }else{
+            res.status(500).json({ message: "An error occurred while processing your request." });
             }
         }
 
@@ -151,10 +153,27 @@ class MentorController{
             if(error instanceof Error){
                 if(error.message == 'Email or OTP is missing'){
                     res.status(401).json({message:'OTP is missing.'})
-                }else if(error.message == 'OTP verification failed'){
+                }else if(error.message == 'otp is not matching'){
                     res.status(401).json({ message: 'Invalid OTP ' });
                 }
+            }else{
+                res.status(500).json({ message: "An error occurred while processing your request." });
             }
+        }
+    }
+
+    async resetPasssword(req:Request,res:Response): Promise<void>{
+        try{
+            const email = req.body.email
+            const newPassword = req.body.newPassword
+            const responceData = await this.mentorService.resetPassword(email,newPassword)
+            if(responceData){
+                res.status(200).json({message:"Success"})
+            }else{
+                res.status(400).json({message:"Failled"})
+            }
+        }catch(error){
+            console.log(error);
         }
     }
 

@@ -118,28 +118,33 @@ class AdminRepository {
 
 	async getUsers(): Promise<Array<IAdminMentorList>> {
 		try {
-			const userData = await Mentee.aggregate([
-				{ $sort: { createdAt: -1 } },
-				{
-					$project: {
-						_id: 1,
-						name: 1,
-						email: 1,
-						isActive: 1,
-						isVerified: 1,
-					},
-				},
-			]);
-			return userData;
+		  const userData = await Mentee.aggregate([
+			{
+			  $match: { isAdmin: false }
+			},
+			{ 
+			  $sort: { createdAt: -1 } 
+			},
+			{
+			  $project: {
+				_id: 1,
+				name: 1,
+				email: 1,
+				isActive: 1,
+				isVerified: 1,
+			  },
+			},
+		  ]);
+		  return userData;
 		} catch (error) {
-			if (error instanceof Error) {
-				console.error(error.message);
-			} else {
-				console.error("An unknown error occurred");
-			}
-			throw error;
+		  if (error instanceof Error) {
+			console.error(error.message);
+		  } else {
+			console.error("An unknown error occurred");
+		  }
+		  throw error;
 		}
-	}
+	  }	  
 
 	async blockUser(id: string, active: boolean): Promise<boolean> {
 		try {

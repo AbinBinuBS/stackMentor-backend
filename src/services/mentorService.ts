@@ -173,10 +173,29 @@ class MentorService {
 		}catch(error){
 		  if (error instanceof Error) {
 			console.error(error.message);
-			throw new Error("Unable to verify otp at this moment")
+			throw new Error("otp is not matching")
 		  } else {
 			console.error("Error verifying OTP:", error);
 			throw new Error("Unable to verify otp at this moment")
+		  }
+		}
+	  }
+
+	  async resetPassword(email:string,password:string): Promise<Boolean | undefined >{
+		try{
+		  const responseData = await this.mentorRepository.reserPassword(email,password)
+		  if(responseData){
+			return true
+		  }else{
+			return false
+		  }
+		}catch(error){
+		  if (error instanceof Error) {
+			console.error(error.message);
+			throw new Error("Unable to reset password at this moment.")
+		  } else {
+			console.error("Error reseting password:", error);
+			throw new Error("Unable to reset password at this moment.")
 		  }
 		}
 	  }
