@@ -6,14 +6,22 @@ import fs from 'fs'
 import { FileUrls } from "../interfaces/servicesInterfaces/ICloudinary";
 import { UploadResult } from "../interfaces/servicesInterfaces/ICloudinary";
 
-const SUPPORTED_FILE_TYPES = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-];
 
-const isSupportedFileType = (file: Express.Multer.File) => SUPPORTED_FILE_TYPES.includes(file.mimetype);
 
+function isSupportedFileType(file: Express.Multer.File, fieldName: string): boolean {
+    const imageFileTypes = ['image/jpeg', 'image/png'];
+    const documentFileTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+
+    if (fieldName === 'image') {
+        return imageFileTypes.includes(file.mimetype);
+    } else {
+        return documentFileTypes.includes(file.mimetype);
+    }
+}
 
 
 
@@ -200,25 +208,33 @@ class MentorController{
     }
     
     
-    async verifymentor(req: Request, res: Response): Promise<void> {
+    async  verifymentor(req: Request, res: Response): Promise<void> {
         try {
             const mentorData = req.body;
             const authHeader = req.headers['authorization'] as string;
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    
             if (!authHeader) {
-                 res.status(400).json({ message: 'Authorization header is missing.' });
+                res.status(400).json({ message: 'Authorization header is missing.' });
+                return;
             }
+    
             const token = authHeader.replace('Bearer ', '');
             const mentorFiles: MentorVerifyFiles = {
                 resume: files['resume'] ? files['resume'][0] : undefined,
                 degreeCertificate: files['degreeCertificate'] ? files['degreeCertificate'][0] : undefined,
-                experienceCertificate: files['experienceCertificate'] ? files['experienceCertificate'][0] : undefined
+                experienceCertificate: files['experienceCertificate'] ? files['experienceCertificate'][0] : undefined,
+                image: files['image'] ? files['image'][0] : undefined
             };
+    
+            // Validate file types according to their field names
             for (const [key, file] of Object.entries(mentorFiles)) {
-                if (file && !isSupportedFileType(file)) {
-                     res.status(400).json({ message: `${key} has an unsupported file type. Only PDF and DOC/DOCX files are allowed.` });
+                if (file && !isSupportedFileType(file, key)) {
+                    res.status(400).json({ message: `${key} has an unsupported file type.` });
+                    return;
                 }
             }
+    
             const uploadResults: UploadResult[] = await Promise.all(
                 Object.keys(mentorFiles).map(async (key) => {
                     const file = mentorFiles[key as keyof MentorVerifyFiles];
@@ -237,19 +253,19 @@ class MentorController{
                 })
             );
     
-            const fileUrls: FileUrls = uploadResults.reduce((acc: FileUrls, result: UploadResult) => {
-                return {
-                    ...acc,
-                    ...result
-                };
-            }, {
+            const fileUrls: FileUrls = uploadResults.reduce((acc: FileUrls, result: UploadResult) => ({
+                ...acc,
+                ...result
+            }), {
                 resume: null,
                 degreeCertificate: null,
-                experienceCertificate: null
+                experienceCertificate: null,
+                image: null
             });
     
+            const isVerified = await this.mentorService.verifyMentor({ ...mentorData, fileUrls }, token);
     
-            const isverifird = await this.mentorService.verifyMentor({ ...mentorData, fileUrls }, token);
+            // Clean up files
             await Promise.all(
                 Object.keys(mentorFiles).map(async (key) => {
                     const file = mentorFiles[key as keyof MentorVerifyFiles];
@@ -257,17 +273,17 @@ class MentorController{
                         fs.unlink(file.path, (err) => {
                             if (err) {
                                 console.error(`Error deleting file ${file.path}:`, err);
-                            } 
+                            }
                         });
                     }
                 })
             );
-            if(isverifird){
-                res.status(200).json({ message: "Verification complete", data: { ...mentorData, fileUrls } });
-            }else{
-                res.status(200).json({ message: "Verification failed ,try after sometime.", data: { ...mentorData, fileUrls } });
-            }
     
+            if (isVerified) {
+                res.status(200).json({ message: "Verification complete", data: { ...mentorData, fileUrls } });
+            } else {
+                res.status(200).json({ message: "Verification failed, try again later.", data: { ...mentorData, fileUrls } });
+            }
         } catch (error: unknown) {
             if (error instanceof Error) {
                 console.error('Error during verification:', error.message);
@@ -305,15 +321,9 @@ class MentorController{
 
     async scheduleTimeForMentor(req:Request,res:Response):Promise<void>{
         try{
-            if (!req.file) {
-                res.status(400).json({ message: 'No file uploaded.' });
-                return;
-            }
             const accessToken = req.headers['authorization'] as string;
-            const image = req.file.path
-            const imageData = await cloudinary.uploader.upload(image);
             const scheduleData = req.body
-            const scheduleTime = await this.mentorService.scheduleTimeForMentor(scheduleData,imageData.secure_url,accessToken)
+            const scheduleTime = await this.mentorService.scheduleTimeForMentor(scheduleData,accessToken)
            if(scheduleTime){
             res.status(200).json({message:"Time scheduled successfully."})
            }else{
@@ -322,6 +332,7 @@ class MentorController{
         }catch(error){
             if (error instanceof Error) {
                 if(error.message == "The time slot overlaps with an existing schedule."){
+                    console.log(error.message)
                     res.status(409).json({message:"The time slot can't  be booked because you already booked time on the provided time."})
                 }else{
                     console.error('Error during time sheduling:', error.message);

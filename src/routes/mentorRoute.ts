@@ -21,7 +21,7 @@ router.post('/reset-password-reset',async(req,res)=>mentorController.resetPasssw
 router.get('/checkVerify' ,async (req,res)=>mentorController.verifyCheck(req,res))
 router.post('/verify-mentor',multipleUpload,async(req,res)=> mentorController.verifymentor(req,res));
 router.post('/auth/refresh-token',async (req,res)=>mentorController.createNewRefreshToken(req,res))
-router.post('/scheduleTime',mentorAuthMiddleware,upload.single('image'), async (req, res) => mentorController.scheduleTimeForMentor(req, res));
+router.post('/scheduleTime',mentorAuthMiddleware, async (req, res) => mentorController.scheduleTimeForMentor(req, res));
 router.get('/getSlots',mentorAuthMiddleware ,async (req,res)=>mentorController.getScheduledSlots(req,res))
 router.delete('/deleteSlot/:id',mentorAuthMiddleware ,async (req,res)=>mentorController.deleteScheduledSlot(req,res))
 

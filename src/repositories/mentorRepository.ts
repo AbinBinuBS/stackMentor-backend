@@ -214,51 +214,52 @@ class MentorRepository {
 		}
 	}
 
-	async verifyMentor(
-		mentorData: MentorVerifyData,
-		id: string
-	): Promise<boolean | undefined> {
-		try {
-			const userData = await Mentor.findByIdAndUpdate(
-				{ _id: id },
-				{ $set: { isVerified: "applied" } },
-				{ new: true }
-			).exec();
-			if (!mentorData || !id) {
-				throw new Error(
-					"Not able to verify your account now, please try again after sometime."
-				);
-			}
-			const verifyMentorData = new MentorVerifyModel({
-				mentorId: userData ? userData._id : undefined,
-				name: mentorData.name,
-				dateOfBirth: mentorData.dateOfBirth,
-				preferredLanguage: mentorData.preferredLanguage,
-				email: mentorData.email,
-				degree: mentorData.degree,
-				college: mentorData.college,
-				yearOfGraduation: mentorData.yearOfGraduation,
-				jobTitle: mentorData.jobTitle,
-				lastWorkedCompany: mentorData.lastWorkedCompany,
-				yearsOfExperience: mentorData.yearsOfExperience,
-				stack: mentorData.stack,
-				resume: mentorData.fileUrls.resume,
-				degreeCertificate: mentorData.fileUrls.degreeCertificate,
-				experienceCertificate: mentorData.fileUrls.experienceCertificate,
-				isVerified: false,
-			});
-			await verifyMentorData.save();
-			if (verifyMentorData) {
-				return true;
-			} else {
-				return false;
-			}
-		} catch (error) {
-			if (error instanceof Error) {
-				console.log(error.message);
-			}
-		}
-	}
+	async verifyMentorInDatabase(
+        mentorData: MentorVerifyData,
+        id: string
+    ): Promise<boolean> {
+        try {
+            const userData = await Mentor.findByIdAndUpdate(
+                { _id: id },
+                { $set: { isVerified: "applied" } },
+                { new: true }
+            ).exec();
+
+            if (!mentorData || !id) {
+                throw new Error("Cannot verify your account now, please try again later.");
+            }
+
+            const experience = parseInt(mentorData.yearsOfExperience);
+
+            const verifyMentorData = new MentorVerifyModel({
+                mentorId: userData ? userData._id : undefined,
+                name: mentorData.name,
+                dateOfBirth: mentorData.dateOfBirth,
+                about: mentorData.about,
+                jobTitle: mentorData.jobTitle,
+                lastWorkedCompany: mentorData.lastWorkedCompany,
+				yearOfGraduation:mentorData.yearOfGraduation,
+				college:mentorData.college,
+				degree:mentorData.degree,
+                yearsOfExperience: experience,
+                stack: mentorData.stack,
+                resume: mentorData.fileUrls.resume,
+                degreeCertificate: mentorData.fileUrls.degreeCertificate,
+                experienceCertificate: mentorData.fileUrls.experienceCertificate,
+                image: mentorData.fileUrls.image, 
+                isVerified: false,
+            });
+
+            await verifyMentorData.save();
+
+            return true;
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error(error.message);
+            }
+            return false; 
+        }
+    }
 
 	async findMentorBtId(id: string): Promise<IMentor | undefined> {
 		try {
@@ -276,7 +277,6 @@ class MentorRepository {
 
 	async scheduleTimeForMentor(
 		scheduleData: IScheduleTime,
-		image: string,
 		id: string
 	): Promise<IScheduleTime | undefined> {
 		try {
@@ -300,10 +300,8 @@ class MentorRepository {
 				startTime: scheduleData.startTime,
 				endTime: scheduleData.endTime,
 				price: scheduleData.price,
-				category: scheduleData.category,
-				about: scheduleData.about,
-				image: image,
 				mentorId: id,
+				isBooked:false
 			});
 
 			await isTimeScheduled.save();

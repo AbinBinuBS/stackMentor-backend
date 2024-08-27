@@ -8,8 +8,7 @@ export interface IMentorLogin {
 export interface MentorVerifyData {
     name: string;
     dateOfBirth: Date;
-    preferredLanguage: string;
-    email: string;
+    about: string;
     degree:string;
     college:string;
     yearOfGraduation:string;
@@ -20,7 +19,8 @@ export interface MentorVerifyData {
     fileUrls:{
       resume:string,
       degreeCertificate:string,
-      experienceCertificate:string
+      experienceCertificate:string,
+      image: string;
     }
   }
   
@@ -28,6 +28,7 @@ export interface MentorVerifyData {
     resume?: Express.Multer.File;
     degreeCertificate?: Express.Multer.File;
     experienceCertificate?: Express.Multer.File;
+    image?:Express.Multer.File;
   }
 
 

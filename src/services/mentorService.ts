@@ -226,32 +226,26 @@ class MentorService {
 	}
 
 	async verifyMentor(
-		mentorData: MentorVerifyData,
-		token: string
-	): Promise<boolean | undefined> {
-		try {
-			const tokenData = jwt.verify(
-				token,
-				process.env.ACCESS_TOKEN_PRIVATE_KEY as string
-			) as mentorPayload;
-			const id = tokenData.id as unknown as string;
-			const verifyMentorData = await this.mentorRepository.verifyMentor(
-				mentorData,
-				id
-			);
-			if (verifyMentorData) {
-				return true;
-			} else {
-				return false;
-			}
-		} catch (error) {
-			if (error instanceof Error) {
-				console.error("Error verifying mentor:", error.message);
-			} else {
-				console.error("Unknown error during mentor verification:", error);
-			}
-		}
-	}
+        mentorData: MentorVerifyData,
+        token: string
+    ): Promise<boolean | undefined> {
+        try {
+            const tokenData = jwt.verify(
+                token,
+                process.env.ACCESS_TOKEN_PRIVATE_KEY as string
+            ) as { id: string };
+
+            const id = tokenData.id;
+            return await this.mentorRepository.verifyMentorInDatabase(mentorData, id);
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error("Error verifying mentor:", error.message);
+            } else {
+                console.error("Unknown error during mentor verification:", error);
+            }
+            return false;
+        }
+    }
 
 	async createNewRefreshToken(
 		refreshTokenData: string
@@ -286,7 +280,6 @@ class MentorService {
 
 	async scheduleTimeForMentor(
 		scheduleData: IScheduleTime,
-		image: string,
 		accessToken: string
 	): Promise<IScheduleTime | undefined> {
 		try {
@@ -300,7 +293,6 @@ class MentorService {
 			const { id } = decoded;
 			const scheduleTime = await this.mentorRepository.scheduleTimeForMentor(
 				scheduleData,
-				image,
 				id
 			);
 			return scheduleTime;

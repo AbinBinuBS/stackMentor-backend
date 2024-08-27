@@ -1,4 +1,9 @@
+import mongoose from "mongoose";
+import { ICombinedData, IMentorShowcase, IMentorVerification, ISlot } from "../interfaces/servicesInterfaces/IMentee";
 import Mentee from "../models/menteeModel";
+import Mentor from "../models/mentorModel";
+import ScheduleTime from "../models/mentorTimeSchedule";
+import MentorVerifyModel from "../models/mentorValidate";
 import TempModel, { IMentee } from "../models/tempRegister";
 import HashedPassword from "../utils/hashedPassword";
 import { generateOTP, sendVerifyMail } from "../utils/mail";
@@ -193,6 +198,113 @@ class MenteeRepository {
 			throw error;
 		}
 	}
+
+	async getMentors(
+		start: number,
+		end: number
+	): Promise<Array<IMentorShowcase>> {
+		try {
+			const mentorsData = await MentorVerifyModel.aggregate([
+				{
+					$match: { isVerified: true },
+				},
+				{
+					$match: {
+						yearsOfExperience: {
+							$gte: start,
+							...(end !== Infinity ? { $lt: end } : {}),
+						},
+					},
+				},
+				{
+					$project: {
+						_id: 1,
+						name: 1,
+						mentorId: 1,
+						image: 1,
+						about: 1,
+						yearsOfExperience: 1,
+					},
+				},
+			]);
+			if (!mentorsData) {
+				throw new Error("Something unexpected happened");
+			}
+			return mentorsData;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.log("an unknown error has been occured");
+			}
+			throw error;
+		}
+	}
+
+	async  getMentorSlots(id: string): Promise<ICombinedData> {
+		try {
+		  const objectId = new mongoose.Types.ObjectId(id);
+		  const tomorrow = new Date();
+		  tomorrow.setDate(tomorrow.getDate());
+	  
+		  const slotsData = await ScheduleTime.aggregate([
+			{
+			  $match: {
+				mentorId: objectId,
+				date: { $gte: tomorrow },
+			  },
+			},
+			{
+			  $lookup: {
+				from: 'mentorvarifies', 
+				localField: 'mentorId',
+				foreignField: 'mentorId',
+				as: 'mentorVerification',
+			  },
+			},
+			{
+			  $unwind: {
+				path: '$mentorVerification',
+				preserveNullAndEmptyArrays: true,
+			  },
+			},
+			{
+			  $project: {
+				_id: 1,
+				date: 1,
+				startTime: 1,
+				endTime: 1,
+				price: 1,
+				isBooked: 1,
+				mentorVerification: {
+				  name: { $ifNull: ['$mentorVerification.name', 'N/A'] },
+				  image: { $ifNull: ['$mentorVerification.image', 'N/A'] },
+				  yearsOfExperience: { $ifNull: ['$mentorVerification.yearsOfExperience', 'N/A'] },
+				},
+			  },
+			},
+		  ]);
+	  
+		  const mentorVerification: IMentorVerification = slotsData.length > 0
+			? slotsData[0].mentorVerification
+			: { name: 'N/A', image: 'N/A', yearsOfExperience: 'N/A' };
+		  
+		  return {
+			slots: slotsData as ISlot[],
+			mentorVerification,
+		  };
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.error('Error:', error.message);
+		  } else {
+			console.log('An unknown error occurred');
+		  }
+		  throw error;
+		}
+	  }
+	  
+	  
+	  
 }
 
 export default MenteeRepository;

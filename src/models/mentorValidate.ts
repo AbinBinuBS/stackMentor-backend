@@ -5,14 +5,14 @@ export interface IMentorVerify extends Document {
     mentorId:ObjectId;
     name: string;
     dateOfBirth: Date;
-    preferredLanguage: string;
-    email: string;
+    about: string;
+    image: string;
     degree:string;
     college:string;
     yearOfGraduation:number;
     jobTitle:string;
     lastWorkedCompany:string;
-    yearsOfExperience:number;
+    yearsOfExperience:Number;
     stack:string;
     resume:string;
     degreeCertificate:string;
@@ -36,11 +36,11 @@ const mentorValidateSchema :Schema = new Schema(
             type:Date,
             required:true,
         },
-        preferredLanguage :{
+        image :{
             type:String,
             required:true,
         },
-        email :{
+        about :{
             type:String,
             required:true,
         },
@@ -65,7 +65,7 @@ const mentorValidateSchema :Schema = new Schema(
             required:true,
         },
         yearsOfExperience :{
-            type:String,
+            type:Number,
             required:true,
         },
         stack :{

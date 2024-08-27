@@ -155,10 +155,33 @@ class MenteeController {
             }
         }catch(error){
             console.log(error);
+            res.status(500).json({ message: "An error occurred while processing your request." });
         }
     }
 
-    
+
+    async getMentorData(req:Request,res:Response): Promise<void>{
+        try{
+            const level = req.query.level as string
+            const mentorsData = await this.menteeService.getMentors(level)
+            res.status(200).json({mentorData:mentorsData})
+        }catch(error){
+            console.log(error);
+            res.status(500).json({ message: "An error occurred while processing your request." });
+        }
+    }
+
+    async getMentorSlots(req:Request,res:Response): Promise<void>{
+        try{
+            const id = req.params.id as string
+            const slotDatas = await this.menteeService.getMentorSlots(id)
+            res.status(200).json({message:"Success" ,slotsData:slotDatas.slots , mentorData:slotDatas.mentorVerification})
+        }catch(error){
+            console.log(error);
+            res.status(500).json({ message: "An error occurred while processing your request." });
+        }
+    }
+      
 }
 
 export default MenteeController;

@@ -3,7 +3,9 @@ import Mentee, { IMentee } from "../models/menteeModel";
 import HashedPassword from "../utils/hashedPassword";
 import { userPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
 import {
+  ICombinedData,
   IMenteeLogin,
+  IMentorShowcase,
   IOtpVerify,
   TokenResponce,
 } from "../interfaces/servicesInterfaces/IMentee";
@@ -192,6 +194,54 @@ class MenteeService {
       }
     }
   }
+
+
+  async getMentors(level: string): Promise<IMentorShowcase[]> {
+    try {
+      let start: number;
+      let end: number;
+      if (level === "beginner") {
+        start = 5;
+        end = 8;
+      } else if (level === "intermediate") {
+        start = 8;
+        end = 10;
+      } else {
+        start = 10;
+        end = Infinity; 
+      }
+      const mentorsData = await this.menteeRepository.getMentors(start , end);
+      return mentorsData
+  
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error("Unable to get mentors at this moment.");
+      } else {
+        console.error("Error getting mentors:", error);
+        throw new Error("Unable to get mentors at this moment.");
+      }
+    }
+  }
+
+  async getMentorSlots(id:string): Promise<ICombinedData >{
+    try{
+     const slotsData:ICombinedData = await this.menteeRepository.getMentorSlots(id)
+     return slotsData
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error("Unable to fetch data at this moment.")
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to fetch data at this moment.")
+      }
+    }
+  }
+
+
+  
+
 }
 
 export default MenteeService;
