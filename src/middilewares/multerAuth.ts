@@ -52,3 +52,6 @@ export const multipleUpload = upload.fields([
     { name: 'experienceCertificate', maxCount: 1 },
     { name: 'image', maxCount: 1 }
 ]);
+
+
+export const singleImageUpload = upload.single('image');

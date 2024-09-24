@@ -2,14 +2,18 @@ import MenteeRepository from "../repositories/menteeRepository";
 import Mentee, { IMentee } from "../models/menteeModel";
 import HashedPassword from "../utils/hashedPassword";
 import { userPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
-import {
+import ICheckIsBooked, {
+  BookedSlot,
   ICombinedData,
   IMenteeLogin,
   IMentorShowcase,
   IOtpVerify,
+  ISlot,
   TokenResponce,
 } from "../interfaces/servicesInterfaces/IMentee";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
+import jwt, { JwtPayload } from "jsonwebtoken";
+import { JWT_SECRET } from "../config/middilewareConfig";
 
 class MenteeService {
   constructor(private menteeRepository: MenteeRepository) {}
@@ -240,8 +244,105 @@ class MenteeService {
   }
 
 
+  async getBookedSlots(accessToken:string): Promise<BookedSlot[] >{
+    try{
+      if (accessToken.startsWith("Bearer ")) {
+				accessToken = accessToken.split(" ")[1];
+			}
+			const decoded = jwt .verify(accessToken,JWT_SECRET as string) as JwtPayload;
+			const { id } = decoded;
+      const bookedSlot = await this.menteeRepository.getBookedSlots(id)
+      return bookedSlot
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error("Unable to fetch data at this moment.")
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to fetch data at this moment.")
+      }
+    }
+  }
+
+
+
+
+  async getResheduleList(id:string,price:number): Promise<ISlot[] >{
+    try{
+     const slotsData:ISlot[] = await this.menteeRepository.getResheduleList(id,price)
+     return slotsData
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error("Unable to fetch data at this moment.")
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to fetch data at this moment.")
+      }
+    }
+  }
+
+  
+  async rescheduleBooking(oldId:string,newId:string): Promise<void >{
+    try{
+     const rescheduleSlot = await this.menteeRepository.rescheduleBooking(oldId,newId)
+     
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error("Unable to fetch data at this moment.")
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to fetch data at this moment.")
+      }
+    }
+  }
+
+  
   
 
+
+
+  async checkIsBooked(bookingData:ICheckIsBooked): Promise< boolean>{
+    try{
+      const isBooked = await this.menteeRepository.checkIsBooked(bookingData)
+      return isBooked
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error(error.message)
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to fetch data at this moment.")
+      }
+    }
+  }
+
+  async paymentMethod(sessionId:string,accessToken:string): Promise< boolean>{
+    try{
+      if (accessToken.startsWith("Bearer ")) {
+				accessToken = accessToken.split(" ")[1];
+			}
+			const decoded = jwt .verify(accessToken,JWT_SECRET as string) as JwtPayload;
+			const { id } = decoded;
+      const bookSlot = await this.menteeRepository.paymentMethod(sessionId,id)
+      return true
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error(error.message)
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to fetch data at this moment.")
+      }
+    }
+  }
+
+
+  
 }
 
 export default MenteeService;
+
+
+

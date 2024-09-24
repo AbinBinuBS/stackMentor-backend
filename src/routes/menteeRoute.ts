@@ -2,7 +2,7 @@ import { Router } from 'express';
 import MenteeRepository from '../repositories/menteeRepository';
 import MenteeService from '../services/menteeService';
 import MenteeController from '../controllers/menteeController';
-import MentorController from '../controllers/mentorController';
+import menteeAuthMiddleware from '../middilewares/userAuth';
 
 const router = Router();
 
@@ -18,8 +18,20 @@ router.post('/resend-otp',async (req,res)=>menteeController.resendOtp(req,res))
 router.post('/forgot-password',async(req,res)=>menteeController.resetWithEmail(req,res))
 router.post('/reset-password-verify-otp', async(req,res)=>menteeController.resetPassswordOtp(req,res))
 router.post('/reset-password-reset',async(req,res)=>menteeController.resetPasssword(req,res))
-router.get('/getMentors',async(req,res)=>menteeController.getMentorData(req,res))
+router.get('/getMentors',menteeAuthMiddleware, async(req,res)=>menteeController.getMentorData(req,res))
 router.get('/getMentorData/:id',async(req,res)=>menteeController.getMentorSlots(req,res))
+router.get('/getBookedSlots',menteeAuthMiddleware,async(req,res)=>menteeController.getBookedSlots(req,res))
+router.get('/availableSlots/:id/:price',menteeAuthMiddleware,async(req,res)=>menteeController.getResheduleList(req,res))
+router.post('/rescheduleBooking',async(req,res)=>menteeController.rescheduleBooking(req,res))
+router.get('/getMenteeData',menteeAuthMiddleware ,async (req,res)=>menteeController.getMenteeData(req,res))
+
+
+router.post('/checkAvailable',async(req,res)=>menteeController.checkIsBooked(req,res))
+router.post('/menteePayment',async(req,res)=>menteeController.paymentMethod(req,res))
+
+
+
+
 
 export default router;
 

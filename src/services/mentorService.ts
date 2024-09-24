@@ -8,7 +8,9 @@ import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import { mentorPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
 import {
 	IMentorLogin,
+	ISlotMentor,
 	ISlotsList,
+	MentorVerification,
 	MentorVerifyData,
 	MentorVerifyFiles,
 } from "../interfaces/servicesInterfaces/IMentor";
@@ -339,12 +341,93 @@ class MentorService {
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
+				throw new Error(error.message)
 			} else {
 				console.error("An unknown error occurred");
 			}
 			throw error;
 		}
 	}
+
+
+	async getBookedSlots(accessToken:string): Promise<ISlotMentor[]> {
+		try {
+			if(accessToken.startsWith("Bearer")){
+				accessToken = accessToken.split(" ")[1]
+			}
+			const decoded = jwt.verify(accessToken,JWT_SECRET as string) as JwtPayload
+			const {id} = decoded
+			const getSlots = await this.mentorRepository.getBookedSlots(id)
+			return getSlots 
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+
+	async getMentorData(mentorId:string): Promise<MentorVerification> {
+		try {
+			const mentorData = await this.mentorRepository.getMentorData(mentorId)
+			return mentorData as unknown as MentorVerification
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+
+	async editProfile(name: string, mentorId: string, imageUrl?: string): Promise<void> {
+		try {
+			const mentorDataUpdate = await this.mentorRepository.updateMentor(name,mentorId, imageUrl);
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async changePassword(oldPassword:string,newPassword:string,mentorId:string): Promise<boolean> {
+		try {
+			const mentorData = await this.mentorRepository.findMentorBtId(mentorId)
+			console.log(mentorData,oldPassword)
+			if(mentorData?.password){
+				const isPasswordValid = await HashedPassword.comparePassword(
+					oldPassword,
+					mentorData.password
+				)
+				if(isPasswordValid){
+					const changePassword = await this.mentorRepository.changePassword(mentorId,newPassword)
+					if(changePassword){
+						return changePassword
+					}else{
+						throw new Error("an unexpected error happened please try again")
+					}
+				}else{
+					throw new Error("password don't match")
+				}
+			}else{
+				throw new Error("an unexpected error happened please try again")
+			}
+			
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+				throw new Error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	
+	
 
 	
 }

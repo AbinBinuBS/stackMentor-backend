@@ -2,7 +2,7 @@ import { Router } from "express";
 import MentorRepository from "../repositories/mentorRepository";
 import MentorService from "../services/mentorService";
 import MentorController from "../controllers/mentorController";
-import { multipleUpload, upload } from "../middilewares/multerAuth";
+import { multipleUpload, singleImageUpload, upload } from "../middilewares/multerAuth";
 import mentorAuthMiddleware from "../middilewares/mentorAuth";
 
 const router = Router();
@@ -24,7 +24,10 @@ router.post('/auth/refresh-token',async (req,res)=>mentorController.createNewRef
 router.post('/scheduleTime',mentorAuthMiddleware, async (req, res) => mentorController.scheduleTimeForMentor(req, res));
 router.get('/getSlots',mentorAuthMiddleware ,async (req,res)=>mentorController.getScheduledSlots(req,res))
 router.delete('/deleteSlot/:id',mentorAuthMiddleware ,async (req,res)=>mentorController.deleteScheduledSlot(req,res))
-
+router.get('/getBookedSlots',mentorAuthMiddleware ,async (req,res)=>mentorController.getBookedSlots(req,res))
+router.get('/getMentorData',mentorAuthMiddleware ,async (req,res)=>mentorController.getMentorData(req,res))
+router.put('/editProfile',mentorAuthMiddleware,singleImageUpload,async(req,res)=>mentorController.editProfile(req,res))
+router.put('/changePassword',mentorAuthMiddleware,async(req,res)=>mentorController.changePassword(req,res))
 
 
 export default router;

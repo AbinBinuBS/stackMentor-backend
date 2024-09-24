@@ -1,5 +1,8 @@
+import e from "express";
 import {
+	ISlotMentor,
 	ISlotsList,
+	MentorVerification,
 	MentorVerifyData,
 } from "../interfaces/servicesInterfaces/IMentor";
 import Mentor, { IMentor } from "../models/mentorModel";
@@ -8,7 +11,7 @@ import MentorVerifyModel from "../models/mentorValidate";
 import MentorTempModel, { IMentorSchema } from "../models/tempregisterMentor";
 import HashedPassword from "../utils/hashedPassword";
 import { generateOTP, sendVerifyMail } from "../utils/mail";
-import mongoose from "mongoose";
+import mongoose ,{ObjectId}from "mongoose";
 import { Types } from 'mongoose'; 
 
 class MentorRepository {
@@ -272,6 +275,7 @@ class MentorRepository {
 			if (error instanceof Error) {
 				console.log(error.message);
 			}
+			throw new Error("An unexpected error occurred.");
 		}
 	}
 
@@ -342,6 +346,7 @@ class MentorRepository {
 			if (error instanceof Error) {
 				console.log(error.message);
 			}
+			throw new Error("An unexpected error occurred.");
 		}
 	}
 
@@ -352,18 +357,131 @@ class MentorRepository {
 		}
 
 		try {
-			const slotData = await ScheduleTime.findByIdAndDelete(id);
+			const slotData = await ScheduleTime.findById(id);
+			if(slotData?.isBooked == true){
+				throw new Error("This slots already booked.")
+			}
 			if (!slotData) {
 				console.error("No slot found with the given ID");
 				return false;
 			}
+			const removeSlot = await ScheduleTime.findByIdAndDelete(id);
 			return true;
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message); 
+				throw new Error(error.message)
 			}
-			return false;
+			throw new Error("An unexpected error occurred.");
 		}
 	}
+
+	
+	async getBookedSlots(id: string): Promise<ISlotMentor[]> {
+		try {
+			const objectId = new mongoose.Types.ObjectId(id) 
+			const today = new Date()
+			today.setHours(0, 0, 0, 0);
+			const getSlots = await ScheduleTime.aggregate([
+			{
+				$match: {
+				mentorId: objectId, 
+				isBooked: true ,
+				date: { $gte: today }    
+				}
+			}
+			]);
+			return getSlots
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async getMentorData(mentorId: string): Promise<MentorVerification | undefined> {
+		try {
+			const mentorData = await MentorVerifyModel.findOne({mentorId}).populate('mentorId');
+			if(mentorData){
+				return mentorData as unknown as MentorVerification
+			}
+			throw new Error("An unexpected error occurred.")
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async updateMentor(
+		name: string,
+		mentorId: string,
+		imageUrl?: string
+	  ): Promise<void> {
+		try {
+		  if (!Types.ObjectId.isValid(mentorId)) {
+			throw new Error("Invalid mentorId provided.");
+		  }
+	  
+		  const updatedMentor = await Mentor.findByIdAndUpdate(
+			mentorId,
+			{ name },
+			{ new: true } 
+		  );
+	  
+		  if (!updatedMentor) {
+			throw new Error("Mentor not found.");
+		  }
+	  
+		  const updatedMentorVerify = await MentorVerifyModel.findOneAndUpdate(
+			{ mentorId },
+			{
+			  name,
+			  ...(imageUrl && { image: imageUrl }) 
+			},
+			{ new: true } 
+		  );
+	  
+		  if (!updatedMentorVerify) {
+			throw new Error("Mentor verification data not found.");
+		  }
+		  console.log("updated mentor",updatedMentor)
+		  console.log("mentorVerify:", updatedMentorVerify,)
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.error(error.message);
+		  }
+		  throw new Error("An unexpected error occurred.");
+		}
+	  }
+
+
+	  async changePassword(mentorId: string, newPassword: string): Promise<boolean> {
+		try {
+		  const hashedPassword = await HashedPassword.hashPassword(newPassword);
+	  
+		  const updatePassword = await Mentor.findByIdAndUpdate(
+			mentorId, 
+			{ password: hashedPassword }, 
+			{ new: true } 
+		  );
+		  if (!updatePassword) {
+			throw new Error('Mentor not found');
+		  }
+		  return true
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+	  
+
+	
+	
+	
 }
 export default MentorRepository;

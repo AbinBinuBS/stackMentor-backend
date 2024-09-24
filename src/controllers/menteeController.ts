@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import MenteeService from '../services/menteeService';
+import stripe from '../config/stripe';
 
 class MenteeController {
     constructor(private menteeService: MenteeService) {}
@@ -181,6 +182,126 @@ class MenteeController {
             res.status(500).json({ message: "An error occurred while processing your request." });
         }
     }
+
+
+    async getBookedSlots(req:Request,res:Response): Promise<void>{
+        try{
+            const accessToken = req.headers['authorization'] as string;
+            const bookedSlot = await this.menteeService.getBookedSlots(accessToken)
+            res.status(200).json({message:"Success",bookedSlot})
+        }catch(error){
+            console.log(error);
+            res.status(500).json({ message: "An error occurred while processing your request." });
+        }
+    }
+
+    async getResheduleList(req:Request,res:Response): Promise<void>{
+        try{
+            const id = req.params.id as string
+            const price = parseInt(req.params.price )
+            const slotDatas = await this.menteeService.getResheduleList(id,price)
+            res.status(200).json({message:"Success" ,availableSlots:slotDatas })
+        }catch(error){
+            console.log(error);
+            res.status(500).json({ message: "An error occurred while processing your request." });
+        }
+    }
+
+    async rescheduleBooking(req:Request,res:Response): Promise<void>{
+        try{
+            const oldId = req.body.oldSlotId
+            const newId = req.body.newSlotId 
+            await this.menteeService.rescheduleBooking(oldId,newId)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            console.log(error);
+            res.status(500).json({ message: "An error occurred while processing your request." });
+        }
+    }
+
+
+    async getMenteeData(req:Request,res:Response):Promise<void>{
+        try{
+            const mentee =  (req as any).mentee; 
+            console.log("222222222222222",mentee)
+            res.status(200).json(mentee)
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  mentor:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+
+
+
+    
+
+
+
+
+
+    
+
+
+
+
+
+    async checkIsBooked(req:Request,res:Response): Promise<void>{
+        try{
+            const bookingData = req.body
+            const isBooked = await this.menteeService.checkIsBooked(bookingData)
+            if(isBooked == false){
+                res.status(200).json({message:"Success"})
+            }else{
+                res.status(409).json({message:" This slot is already booked."})
+            }
+            
+        }catch(error){
+            if(error instanceof Error){
+                if(error.message == " This slot is already booked."){
+                    res.status(409).json({message:" This slot is already booked."})
+                }else{
+                    console.log(error);
+                    res.status(500).json({ message: "An error occurred while processing your request." });
+                }
+            }
+        }
+    }
+
+
+    async  paymentMethod(req: Request, res: Response): Promise<void> {
+        try {
+            const accessToken = req.headers['authorization'] as string;
+            const { sessionId,amount } = req.body;
+            const bookSlot = await this.menteeService.paymentMethod(sessionId,accessToken)
+            const amountInPaise = amount * 100; 
+            if (amountInPaise < 50) {
+                res.status(400).json({ message: "Amount must be at least 50 paise (0.50 INR)." });
+                return;
+            }
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amountInPaise,
+                currency: 'inr',
+                payment_method_types: ['card'],
+            });
+            res.status(200).send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ message: "An error occurred while processing your request." });
+        }
+    }
+    
+
+    
+
+    
       
 }
 

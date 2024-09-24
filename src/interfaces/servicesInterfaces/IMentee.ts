@@ -48,3 +48,92 @@ export interface ISlot {
     slots: ISlot[];
     mentorVerification: IMentorVerification;
   }
+
+  export default interface ICheckIsBooked {
+    sessionId:string;
+    amount:Number;
+  }
+
+
+
+  export interface MentorData {
+    _id:string;
+    name: string;
+    image: string;
+  }
+  
+  export interface BookedSlot {
+    _id: mongoose.Types.ObjectId;
+    date: Date;
+    startTime: string;
+    endTime: string;
+    price: number;
+    mentorData: MentorData;
+  }
+
+
+  export interface menteeChatData {
+    id: string;
+    name: string;
+    phone: string;
+    email: string;
+    isActive: true,
+    isAdmin: false,
+  }
+
+
+  interface IMentor {
+    _id: mongoose.Types.ObjectId;
+    mentorId: mongoose.Types.ObjectId;
+    name: string;
+    dateOfBirth: Date;
+    image: string;
+    about: string;
+    degree: string;
+    college: string;
+    yearOfGraduation: string;
+    jobTitle: string;
+    lastWorkedCompany: string;
+    yearsOfExperience: string;
+    stack: string;
+    resume: string;
+    degreeCertificate: string;
+    experienceCertificate: string;
+    isVerified: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+  
+  interface IMentee {
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    email: string;
+    phone: string;
+    isActive: boolean;
+    isAdmin: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    __v: number;
+  }
+  
+  export interface IExistingMessage {
+    _id: mongoose.Types.ObjectId;
+    chatName: string;
+    mentor: IMentor;
+    mentee: IMentee;
+    createdAt: Date;
+    updatedAt: Date;
+    __v: number;
+    latestMessage: {
+      _id: mongoose.Types.ObjectId;
+      sender: mongoose.Types.ObjectId;
+      senderModel: string;
+      content: string;
+      chat: mongoose.Types.ObjectId;
+      readBy: mongoose.Types.ObjectId[];
+      createdAt: Date;
+      updatedAt: Date;
+      __v: number;
+    };
+  }
+  

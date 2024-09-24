@@ -5,6 +5,7 @@ import cloudinary from "../utils/cloudinary";
 import fs from 'fs'
 import { FileUrls } from "../interfaces/servicesInterfaces/ICloudinary";
 import { UploadResult } from "../interfaces/servicesInterfaces/ICloudinary";
+import MentorVerifyModel from "../models/mentorValidate";
 
 
 
@@ -374,16 +375,103 @@ class MentorController{
            }
         }catch(error){
             if (error instanceof Error) {
-                console.error( error.message);
-                res.status(500).json({ message: error.message });
+                if(error.message == "This slots already booked."){
+                    res.status(203).json({message:error.message})
+                }else{
+                    console.error( error.message);
+                    res.status(500).json({ message: error.message });
+                }
             } else {
                 console.error('Unknown error during  removing slots:', error);
                 res.status(500).json({ message: 'Internal server error' });
             }
         }
     }
+
+    async getBookedSlots(req:Request,res:Response):Promise<void>{
+        try{
+            const accessToken = req.headers['authorization'] as string
+            const getSlots = await this.mentorService.getBookedSlots(accessToken)
+            res.status(200).json({message:"Success",Slots:getSlots})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  fetching slots:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+
+    async getMentorData(req:Request,res:Response):Promise<void>{
+        try{
+            const mentor =  (req as any).mentor; 
+            const mentorId = mentor?.id
+            const mentorVerification = await this.mentorService.getMentorData(mentorId)
+            res.status(200).json(mentorVerification)
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  mentor:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async editProfile(req: Request, res: Response): Promise<void> {
+        try {
+            const { name } = req.body;
+            const mentorId = (req as any).mentor.id;
+            let imageUrl: string | undefined;
     
+            if (req.file) {
+                const result = await cloudinary.uploader.upload(req.file.path, {
+                    folder: 'mentor_profiles',
+                });
+                imageUrl = result.secure_url;
+            }
+            const mentorResponse = await this.mentorService.editProfile(name, mentorId, imageUrl);
+            res.status(200).json({message:"Success"});
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error(error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during mentor profile update:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async changePassword(req:Request,res:Response): Promise<void>{
+        try{
+            const {oldPassword,newPassword} = req.body
+            const mentorId = (req as any).mentor.id
+            const updatePassword = await this.mentorService.changePassword(oldPassword,newPassword,mentorId)
+            if(updatePassword){
+                res.status(200).json({message:"Success"})
+            }else{
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        } catch (error) {
+            if (error instanceof Error) {
+                console.log("1111111111111111111",error)
+                if(error.message == "password don't match"){
+                    res.status(400).json({message:"old password don't match"})
+                }else{
+                    res.status(500).json({ message: error.message });
+                }
+            } else {
+                console.error('Unknown error during mentor profile update:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
     
-    
+ 
 }
 export default MentorController
