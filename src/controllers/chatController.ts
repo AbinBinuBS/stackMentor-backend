@@ -23,8 +23,8 @@ class ChatController {
 
     async mentorConnectChat(req: Request, res: Response): Promise<void> {
         try {
-            const mentorId = req.body.mentorId;
-            const mentee = req.body.userId;            
+            const mentorId = (req as any).mentor.id
+            const mentee = req.body.bookingData.userId            
             const Chat = await this.chatService.mentorConnectChat(mentee,mentorId)
             res.status(200).json({message:"Success",chat:Chat})
         } catch (error) {

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import ICheckIsBooked, {
 	BookedSlot,
 	ICombinedData,
@@ -13,6 +13,8 @@ import MentorVerifyModel from "../models/mentorValidate";
 import TempModel, { IMentee } from "../models/tempRegister";
 import HashedPassword from "../utils/hashedPassword";
 import { generateOTP, sendVerifyMail } from "../utils/mail";
+import BookedSlots from "../models/bookedSlots";
+import { timeSheduleStatus } from "../constants/status";
 
 class MenteeRepository {
 	async menteeRegister(
@@ -91,6 +93,33 @@ class MenteeRepository {
 
 			await TempModel.deleteOne({ email });
 
+			return savedMentee;
+		} catch (error: unknown) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.log("an unknown error has been occured");
+			}
+			throw error;
+		}
+	}
+
+
+	async googleRegister(name:string,email:string,password:string): Promise<IMentee> {
+		try {
+			const hashedPassword = await HashedPassword.hashPassword(
+				password
+			);
+			const newMentee = new Mentee({
+				email: email,
+				name: name,
+				phone: 1234567890,
+				password: hashedPassword,
+				isActive: true,
+				isAdmin: false,
+			});
+
+			const savedMentee = await newMentee.save();
 			return savedMentee;
 		} catch (error: unknown) {
 			if (error instanceof Error) {
@@ -315,172 +344,199 @@ class MenteeRepository {
 		}
 	}
 
-	async getBookedSlots(userId: string): Promise<BookedSlot[]> {
-		try {
-			const now = new Date();
 
-			const bookedSlots: BookedSlot[] = await ScheduleTime.aggregate([
-				{
-					$match: {
-						userId: new mongoose.Types.ObjectId(userId),
-						isBooked: true,
-					},
-				},
-				{
-					$addFields: {
-						startDateTime: {
-							$dateFromParts: {
-								year: { $year: "$date" },
-								month: { $month: "$date" },
-								day: { $dayOfMonth: "$date" },
-								hour: {
-									$toInt: {
-										$arrayElemAt: [{ $split: ["$startTime", ":"] }, 0],
-									},
-								},
-								minute: {
-									$toInt: {
-										$arrayElemAt: [{ $split: ["$startTime", ":"] }, 1],
-									},
-								},
-								second: 0,
-							},
-						},
-					},
-				},
-				{
-					$match: {
-						startDateTime: { $gte: now },
-					},
-				},
-				{
-					$lookup: {
-						from: "mentorvarifies",
-						localField: "mentorId",
-						foreignField: "mentorId",
-						as: "mentorData",
-					},
-				},
-				{
-					$unwind: "$mentorData",
-				},
-				{
-					$project: {
-						date: 1,
-						startTime: 1,
-						endTime: 1,
-						price: 1,
-						"mentorData._id": 1,
-						"mentorData.name": 1,
-						"mentorData.image": 1,
-						startDateTime: 1,
-					},
-				},
-				{
-					$sort: {
-						startDateTime: 1,
-					},
-				},
-			]);
-			console.log(bookedSlots);
-			return bookedSlots;
-		} catch (error) {
-			if (error instanceof Error) {
-				console.error("Error:", error.message);
-			} else {
-				console.log("An unknown error occurred");
-			}
-			throw error;
+async getBookedSlots(userId: string): Promise<BookedSlot[]> {
+    try {
+        const now = new Date();
+
+        const bookedSlots: BookedSlot[] = await BookedSlots.aggregate([
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(userId),
+                    isAttended: false, // Assuming you want only un-attended slots
+                    isExpired: false,   // Assuming you want only non-expired slots
+                },
+            },
+            {
+                $lookup: {
+                    from: 'scheduletimes', // The collection name for ScheduleTime
+                    localField: 'slotId',
+                    foreignField: '_id',
+                    as: 'scheduleData',
+                },
+            },
+            {
+                $unwind: '$scheduleData',
+            },
+            {
+                $addFields: {
+                    startDateTime: {
+                        $dateFromParts: {
+                            year: { $year: '$scheduleData.date' },
+                            month: { $month: '$scheduleData.date' },
+                            day: { $dayOfMonth: '$scheduleData.date' },
+                            hour: {
+                                $toInt: {
+                                    $arrayElemAt: [{ $split: ['$scheduleData.startTime', ':'] }, 0],
+                                },
+                            },
+                            minute: {
+                                $toInt: {
+                                    $arrayElemAt: [{ $split: ['$scheduleData.startTime', ':'] }, 1],
+                                },
+                            },
+                            second: 0,
+                        },
+                    },
+                },
+            },
+            {
+                $match: {
+                    startDateTime: { $gte: now },
+                },
+            },
+            {
+                $lookup: {
+                    from: 'mentorvarifies', // Ensure this collection name is correct
+                    localField: 'scheduleData.mentorId',
+                    foreignField: 'mentorId',
+                    as: 'mentorData',
+                },
+            },
+            {
+                $unwind: '$mentorData',
+            },
+            {
+                $project: {
+                    date: '$scheduleData.date',
+                    startTime: '$scheduleData.startTime',
+                    endTime: '$scheduleData.endTime',
+                    price: '$scheduleData.price',
+                    'mentorData._id': 1,
+                    'mentorData.name': 1,
+                    'mentorData.image': 1,
+                    startDateTime: 1,
+                },
+            },
+            {
+                $sort: {
+                    startDateTime: 1,
+                },
+            },
+        ]);
+
+        console.log(bookedSlots);
+        return bookedSlots;
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error('Error:', error.message);
+        } else {
+            console.log('An unknown error occurred');
+        }
+        throw error;
+    }
+}
+
+
+async getResheduleList(id: string, price: number): Promise<ISlot[]> {
+	try {
+		const objectId = new mongoose.Types.ObjectId(id);
+		const bookedSlot = await BookedSlots.findById(objectId).exec();
+
+		if (!bookedSlot) {
+			throw new Error("Booked slot not found");
 		}
-	}
 
-	async getResheduleList(id: string, price: number): Promise<ISlot[]> {
-		try {
-			const objectId = new mongoose.Types.ObjectId(id);
+		const schedule = await ScheduleTime.findById(bookedSlot.slotId).exec();
 
-			const schedule = await ScheduleTime.findById(objectId).exec();
-
-			if (!schedule) {
-				throw new Error("Schedule not found");
-			}
-
-			const mentorId = schedule.mentorId;
-			const tomorrow = new Date();
-			tomorrow.setDate(tomorrow.getDate());
-
-			const slotsData = await ScheduleTime.aggregate([
-				{
-					$match: {
-						mentorId: mentorId,
-						date: { $gte: tomorrow },
-						isBooked: false,
-						price: price,
-					},
-				},
-				{
-					$project: {
-						_id: 1,
-						date: 1,
-						startTime: 1,
-						endTime: 1,
-						price: 1,
-						isBooked: 1,
-					},
-				},
-			]);
-
-			console.log(slotsData);
-
-			return slotsData as ISlot[];
-		} catch (error) {
-			if (error instanceof Error) {
-				console.error("Error:", error.message);
-			} else {
-				console.log("An unknown error occurred");
-			}
-			throw error;
+		if (!schedule) {
+			throw new Error("Associated schedule not found");
 		}
-	}
 
-	async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
-		const session = await ScheduleTime.startSession();
-		session.startTransaction();
-	  
-		try {
-		  const oldSchedule = await ScheduleTime.findById(oldId).session(session);
-		  if (!oldSchedule) {
-			throw new Error("Old schedule not found");
-		  }
-	  
-		  const newSchedule = await ScheduleTime.findById(newId).session(session);
-		  if (!newSchedule) {
-			throw new Error("New schedule not found");
-		  }
-	  
-		  const userId = oldSchedule.userId;
-	  
-		  oldSchedule.isBooked = false;
-		  oldSchedule.userId = undefined;
-		  await oldSchedule.save({ session });
-	  
-		  newSchedule.isBooked = true;
-		  newSchedule.userId = userId;
-		  await newSchedule.save({ session });
-	  
-		  await session.commitTransaction();
-		  return true;
-		} catch (error) {
-		  await session.abortTransaction();
-		  if (error instanceof Error) {
+		const mentorId = schedule.mentorId;
+		const tomorrow = new Date();
+		tomorrow.setDate(tomorrow.getDate() + 1);
+		const slotsData = await ScheduleTime.aggregate([
+			{
+				$match: {
+					mentorId: mentorId,
+					date: { $gte: tomorrow },
+					isBooked: false, 
+					price: price, 
+				},
+			},
+			{
+				$project: {
+					_id: 1,
+					date: 1,
+					startTime: 1,
+					endTime: 1,
+					price: 1,
+					isBooked: 1,
+				},
+			},
+		]);
+		return slotsData as ISlot[];
+	} catch (error) {
+		if (error instanceof Error) {
 			console.error("Error:", error.message);
-		  } else {
-			console.error("An unknown error occurred");
-		  }
-		  throw error;
-		} finally {
-		  session.endSession();
+		} else {
+			console.log("An unknown error occurred");
 		}
+		throw error;
+	}
+}
+
+async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
+	const session = await mongoose.startSession();
+	session.startTransaction();
+  
+	try {
+	  // Find the booked slot using the old BookedSlot ID
+	  const oldBookedSlot = await BookedSlots.findById(oldId).session(session);
+	  if (!oldBookedSlot) {
+		throw new Error("Old booked slot not found");
 	  }
+  
+	  // Fetch the corresponding old schedule time using the slotId from the booked slot
+	  const oldSchedule = await ScheduleTime.findById(oldBookedSlot.slotId).session(session);
+	  if (!oldSchedule) {
+		throw new Error("Old schedule time not found");
+	  }
+  
+	  // Find the new schedule time using the newId provided
+	  const newSchedule = await ScheduleTime.findById(newId).session(session);
+	  if (!newSchedule) {
+		throw new Error("New schedule time not found");
+	  }
+  
+	  if (newSchedule.isBooked) {
+		throw new Error("New schedule is already booked");
+	  }
+  
+	  oldSchedule.isBooked = false;
+	  await oldSchedule.save({ session });
+  
+	  newSchedule.isBooked = true;
+	  await newSchedule.save({ session });
+  
+	  oldBookedSlot.slotId = newSchedule._id as Types.ObjectId
+	  await oldBookedSlot.save({ session });
+  
+	  await session.commitTransaction();
+	  return true;
+	} catch (error) {
+	  await session.abortTransaction();
+	  if (error instanceof Error) {
+		console.error("Error:", error.message);
+	  } else {
+		console.error("An unknown error occurred");
+	  }
+	  throw error;
+	} finally {
+	  session.endSession();
+	}
+  }
 	  
 	  
 	  
@@ -507,17 +563,50 @@ class MenteeRepository {
 	async paymentMethod(
 		scheduledId: string,
 		userId: string
-	): Promise<IScheduleTime | null> {
+	  ): Promise<IScheduleTime | null> {
 		try {
-			const schedule = await ScheduleTime.findById(scheduledId);
-			if (!schedule) {
-				throw new Error("Schedule not found");
-			}
-			schedule.isBooked = true;
-			schedule.userId = userId;
-			const updatedSchedule = await schedule.save();
+		  const schedule = await ScheduleTime.findById(scheduledId);
+		  if (!schedule) {
+			throw new Error("Schedule not found");
+		  }
+	  
+		  if (schedule.isBooked) {
+			throw new Error("Slot is already booked");
+		  }
+	  
+		  const bookedSlot = new BookedSlots({
+			slotId: schedule._id, 
+			userId: userId,
+			status: timeSheduleStatus.CONFIRMED,
+			isAttended: false,
+			isExpired: false,
+		  });
+	  
+		  const savedBookedSlot = await bookedSlot.save();
+		  schedule.isBooked = true;
+		  schedule.bookingId = savedBookedSlot._id as Types.ObjectId 
+	  
+		  const updatedSchedule = await schedule.save();
+	  
+		  return updatedSchedule;
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.error("Error:", error.message);
+		  } else {
+			console.log("An unknown error occurred");
+		  }
+		  throw error;
+		}
+	  }
 
-			return updatedSchedule;
+	  async getWalletData(menteeId: string): Promise<IMentee | undefined> {
+		try {
+			const walletData = await Mentee.findById(menteeId).select('_id name wallet').exec();
+			if (walletData) {
+				return walletData; 
+			} else {
+				throw new Error("Mentee not found");
+			}
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error("Error:", error.message);
@@ -527,6 +616,56 @@ class MenteeRepository {
 			throw error;
 		}
 	}
+
+	async cancelSlot(slotId: string): Promise<void> {
+		const session = await mongoose.startSession();
+		session.startTransaction();
+	  
+		try {
+		  const bookedSlot = await BookedSlots.findById(slotId).session(session);
+		  if (!bookedSlot) {
+			throw new Error('Booked slot not found');
+		  }
+	  
+		  const scheduleTime = await ScheduleTime.findById(bookedSlot.slotId).session(session);
+		  if (!scheduleTime) {
+			throw new Error('Related schedule not found');
+		  }
+	  
+		  if (bookedSlot.userId) {
+			const mentee = await Mentee.findById(bookedSlot.userId).session(session);
+			if (!mentee) {
+			  throw new Error('Mentee not found');
+			}
+	  
+			mentee.wallet = (mentee.wallet || 0) + scheduleTime.price;
+			await mentee.save({ session });
+		  }
+	  
+		  bookedSlot.status = 'cancelled';
+		  await bookedSlot.save({ session });
+	  
+		  scheduleTime.isBooked = false;
+		  scheduleTime.bookingId = undefined;
+		  await scheduleTime.save({ session });
+	  
+		  await session.commitTransaction();
+		  session.endSession();
+		} catch (error) {
+		  await session.abortTransaction();
+		  session.endSession();
+	  
+		  if (error instanceof Error) {
+			console.error('Error:', error.message);
+		  } else {
+			console.log('An unknown error occurred');
+		  }
+		  throw error;
+		}
+	  }
+	
+	  
+	  
 }
 
 export default MenteeRepository;

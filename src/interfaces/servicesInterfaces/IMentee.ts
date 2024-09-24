@@ -5,6 +5,13 @@ export interface TokenResponce{
     refreshToken:string;
 }
 
+export interface TokenwithCridential {
+  emailExists:boolean;
+  accessToken?:string;
+  refreshToken?:string;
+  message:string
+}
+
 export interface IMenteeLogin {
     email:string;
     password:string

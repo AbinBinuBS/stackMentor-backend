@@ -4,9 +4,9 @@ import { googleAuth,googleAuthCallback,authSuccess,authFailure } from '../contro
 
 const router: Router = Router()
 
-router.get('/auth',googleAuth)
-router.get('/auth/callback',googleAuthCallback)
-router.get('/auth/callback/success',authSuccess)
-router.get('/auth/callback/failure',authFailure)
+router.get('/',googleAuth)
+router.get('/callback',googleAuthCallback)
+router.get('/callback/success',authSuccess)
+router.get('/callback/failure',authFailure)
 
 export default router;

@@ -459,7 +459,6 @@ class MentorController{
             }
         } catch (error) {
             if (error instanceof Error) {
-                console.log("1111111111111111111",error)
                 if(error.message == "password don't match"){
                     res.status(400).json({message:"old password don't match"})
                 }else{

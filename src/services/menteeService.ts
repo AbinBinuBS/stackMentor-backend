@@ -10,6 +10,7 @@ import ICheckIsBooked, {
   IOtpVerify,
   ISlot,
   TokenResponce,
+  TokenwithCridential,
 } from "../interfaces/servicesInterfaces/IMentee";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import jwt, { JwtPayload } from "jsonwebtoken";
@@ -84,6 +85,69 @@ class MenteeService {
         console.error("An unknown error occurred");
       }
       throw error;
+    }
+  }
+
+  async checkMenteeMail(email:string): Promise<TokenwithCridential | null | undefined> {
+   
+    try {
+      const menteeResponse = await this.menteeRepository.findMenteeByEmail(
+        email
+      );
+      if (!menteeResponse) {
+        return {
+          emailExists: false,
+          message: "Email is not registered",
+        };
+      }
+      if(!menteeResponse.isActive){
+        throw new Error("User is blocked ");
+      }
+      const userPayload : userPayload = {
+        id: menteeResponse.id,
+        name: menteeResponse.name,
+        phone: menteeResponse.phone,
+        email: menteeResponse.email,
+        isActive: menteeResponse.isActive,
+        isAdmin: menteeResponse.isAdmin,
+      };
+      let accessToken = generateAccessToken(userPayload)
+      let refreshToken = generateRefreshToken(userPayload)
+      return {emailExists: true,accessToken,refreshToken,message: "Email is registered"}            
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(error.message);
+      } else {
+        console.error("An unknown error occurred");
+      }
+      throw error;
+    }
+  }
+
+
+  async googleRegister(name:string,email:string,password:string): Promise<TokenResponce | null> {
+    try {
+      
+      const mentorData = await this.menteeRepository.googleRegister(name,email,password);
+      const userPayload = {
+        id: mentorData.id,
+        name: mentorData.name,
+        phone: mentorData.phone,
+        email: mentorData.email,
+        isActive: mentorData.isActive,
+        isAdmin: mentorData.isAdmin,
+      };
+      const accessToken = await generateAccessToken(userPayload);
+      const refreshToken = await generateRefreshToken(userPayload);
+      return { accessToken, refreshToken };
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(error.message);
+        return null;
+      } else {
+        console.error("Error verifying OTP:", error);
+        return null;
+      }
     }
   }
 
@@ -327,6 +391,36 @@ class MenteeService {
 			const { id } = decoded;
       const bookSlot = await this.menteeRepository.paymentMethod(sessionId,id)
       return true
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error(error.message)
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to fetch data at this moment.")
+      }
+    }
+  }
+
+  async getWalletData(menteeId:string): Promise< IMentee | undefined>{
+    try{
+      const walletData = await this.menteeRepository.getWalletData(menteeId)
+      return walletData
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error(error.message)
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to fetch data at this moment.")
+      }
+    }
+  }
+
+  async cancelSlot(slotId:string): Promise< void>{
+    try{
+      const slotData = await this.menteeRepository.cancelSlot(slotId)
+      return slotData
     }catch(error){
       if (error instanceof Error) {
         console.error(error.message);

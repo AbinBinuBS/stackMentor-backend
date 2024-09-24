@@ -379,19 +379,53 @@ class MentorRepository {
 	
 	async getBookedSlots(id: string): Promise<ISlotMentor[]> {
 		try {
-			const objectId = new mongoose.Types.ObjectId(id) 
-			const today = new Date()
-			today.setHours(0, 0, 0, 0);
-			const getSlots = await ScheduleTime.aggregate([
-			{
-				$match: {
-				mentorId: objectId, 
-				isBooked: true ,
-				date: { $gte: today }    
-				}
-			}
+			const objectId = new mongoose.Types.ObjectId(id);
+			const today = new Date();
+			today.setHours(0, 0, 0, 0); // Set time to the start of today
+	
+			const bookedSlots: ISlotMentor[] = await ScheduleTime.aggregate([
+				{
+					$match: {
+						mentorId: objectId,
+						isBooked: true,
+						date: { $gte: today }, // Filter for today's date and beyond
+					},
+				},
+				{
+					$lookup: {
+						from: 'bookedslots', // Ensure this matches the correct collection name for BookedSlots
+						localField: '_id',
+						foreignField: 'slotId',
+						as: 'bookingData', // You can rename this as needed
+					},
+				},
+				{
+					$unwind: {
+						path: '$bookingData',
+						preserveNullAndEmptyArrays: true, // Optional: keeps the slots even if there are no bookings
+					},
+				},
+				{
+					$project: {
+						date: 1,
+						startTime: 1,
+						endTime: 1,
+						price: 1,
+						isBooked: 1,
+						'bookingData.userId': 1,
+						'bookingData.status': 1, 
+					},
+				},
+				{
+					$sort: {
+						date: 1, // Sort by date
+						startTime: 1, // Sort by start time if necessary
+					},
+				},
 			]);
-			return getSlots
+			console.log("5555555555555555555555555555555555555555555",bookedSlots)
+	
+			return bookedSlots;
 		} catch (error) {
 			if (error instanceof Error) {
 				console.log(error.message);

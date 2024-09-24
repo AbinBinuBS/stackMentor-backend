@@ -1,5 +1,4 @@
 import { Schema, model, Document } from 'mongoose';
-import { timeSheduleStatus, timeSheduleStatuses } from '../constants/status';
 
 export interface IScheduleTime extends Document {
   date: Date;
@@ -7,11 +6,8 @@ export interface IScheduleTime extends Document {
   endTime: string;
   price: number;
   mentorId: Schema.Types.ObjectId; 
-  isBooked:boolean;
-  userId?: string; 
-  isAttended?: boolean;
-  isExpired?:boolean;
-  status?:timeSheduleStatuses;
+  isBooked: boolean;
+  bookingId?:unknown; 
 }
 
 const scheduleTimeSchema: Schema<IScheduleTime> = new Schema(
@@ -38,25 +34,14 @@ const scheduleTimeSchema: Schema<IScheduleTime> = new Schema(
       required: true,
     },
     isBooked: {
-      type:Boolean,
-      required:true
+      type: Boolean,
+      required: true,
+      default: false, // Default value to avoid undefined states
     },
-    userId: {
+    bookingId: {
       type: Schema.Types.ObjectId,
-      ref: 'Mentee'
+      ref: 'BookedSlot',
     },
-    isAttended: {
-      type: Boolean,
-      default: false 
-    },
-    status: {
-      type: String,
-      enum: Object.values(timeSheduleStatus),
-    },
-    isExpired: {
-      type: Boolean,
-      default: false 
-    }
   },
   { timestamps: true }
 );

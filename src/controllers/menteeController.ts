@@ -27,6 +27,19 @@ class MenteeController {
         }
     }
 
+    async googleRegister(req: Request, res: Response): Promise<void> {
+        try {
+            const {userName,email,password} = req.body;
+            const mentorData = await this.menteeService.googleRegister(userName,email,password)
+            res.status(201).json(mentorData);
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error(`Unknown error in menteeRegister: ${error}`);
+                res.status(500).json({ message: 'Internal Server Error' });
+            }
+        }
+    }
+
     async menteeLogin(req:Request,res:Response): Promise<void> {
         try{
             const mentee = req.body
@@ -44,6 +57,24 @@ class MenteeController {
                     console.error(`Invalid password ${error.message}`);
                     res.status(500).json({ message: error.message });
                 }
+            } else {
+                console.error(`Unknown error in menteelogin: ${error}`);
+                res.status(500).json({ message: 'Internal Server Error' });
+            }
+        }
+    }
+
+    async checkMenteeMail(req:Request,res:Response): Promise<void> {
+        try{
+            const email = req.body
+            const menteeData = await this.menteeService.checkMenteeMail(email.email)
+            if(menteeData){
+                res.status(201).json(menteeData)
+            }
+        }catch(error){
+            if (error instanceof Error) {
+                console.error(`Invalid password ${error.message}`);
+                res.status(500).json({ message: error.message });
             } else {
                 console.error(`Unknown error in menteelogin: ${error}`);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -211,6 +242,8 @@ class MenteeController {
         try{
             const oldId = req.body.oldSlotId
             const newId = req.body.newSlotId 
+            console.log("1111111111111111111111",oldId)
+            console.log("2222222222222222222222",newId)
             await this.menteeService.rescheduleBooking(oldId,newId)
             res.status(200).json({message:"Success"})
         }catch(error){
@@ -223,7 +256,6 @@ class MenteeController {
     async getMenteeData(req:Request,res:Response):Promise<void>{
         try{
             const mentee =  (req as any).mentee; 
-            console.log("222222222222222",mentee)
             res.status(200).json(mentee)
         }catch(error){
             if (error instanceof Error) {
@@ -236,9 +268,41 @@ class MenteeController {
         }
     }
 
+    async getWalletData(req:Request,res:Response):Promise<void>{
+        try{
+            const menteeId =  (req as any).mentee.id 
+            const walletData = await this.menteeService.getWalletData(menteeId)
+            res.status(200).json({message:"Success" , walletData:walletData})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  mentor:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async cancelSlot(req:Request,res:Response):Promise<void>{
+        try{
+            const slotId = req.body._id
+            const slotData = await this.menteeService.cancelSlot(slotId)
+            res.status(200).json({message:"Success" })
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
 
 
-
+    
+    
     
 
 

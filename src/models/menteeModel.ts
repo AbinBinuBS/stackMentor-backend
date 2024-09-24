@@ -7,6 +7,7 @@ export interface IMentee extends Document {
     phone: string;
     isActive: boolean;
     isAdmin: boolean;
+    wallet?: number; 
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -37,6 +38,10 @@ const menteeSchema: Schema = new Schema(
         isAdmin: {
             type: Boolean,
             required: true,
+        },
+        wallet: {
+            type: Number,
+            default: 0, 
         },
     },
     {
