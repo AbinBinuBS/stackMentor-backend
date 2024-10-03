@@ -470,7 +470,166 @@ class MentorController{
             }
         }
     }
+
+
+    async cancelSlot(req:Request,res:Response):Promise<void>{
+        try{
+            const slotId = req.body.id
+            const cancelSlot = await this.mentorService.cancelSlot(slotId)
+            res.status(200).json({message:"Slot cancelled successfully"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  mentor:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async allowConnection(req:Request,res:Response):Promise<void>{
+        try{
+            const bookedId = req.body.bookedId
+            const setConnection = await this.mentorService.allowConnection(bookedId)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  mentor:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async endConnection(req:Request,res:Response):Promise<void>{
+        try{
+            const bookedId = req.body.bookedId
+            const endConnection = await this.mentorService.endConnection(bookedId)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  mentor:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async getAllQuestions(req:Request,res:Response):Promise<void>{
+        try{
+            const mentorId = (req as any).mentor.id
+            const AllQuestions = await this.mentorService.getAllQuestions(mentorId)
+            res.status(200).json({message:"Success",questions:AllQuestions})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  mentor:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async submitQAAnswer(req:Request,res:Response):Promise<void>{
+        try{
+            const mentorId = (req as any).mentor.id
+            const { questionId , answer} = req.body
+            const submitAnwer = await this.mentorService.submitQAAnswer(questionId,mentorId,answer)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async editQAAnswer(req:Request,res:Response):Promise<void>{
+        try{
+            const mentorId = (req as any).mentor.id
+            const { questionId , answer} = req.body
+            const editAnswer = await this.mentorService.editQAAnswer(questionId,mentorId,answer)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async createComminityMeet(req:Request,res:Response):Promise<void>{
+        try{
+            const mentorId = (req as any).mentor.id
+            const formData = req.body
+            let imageUrl: string | undefined;
+            if (req.file) {
+                const result = await cloudinary.uploader.upload(req.file.path, {
+                    folder: 'mentor_profiles',
+                });
+                imageUrl = result.secure_url;
+            }
+            if(!imageUrl){
+                res.status(500).json({ message: 'Internal server error' })
+                return
+            }
+            const createMeet = await this.mentorService.createComminityMeet(formData,mentorId,imageUrl)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during createComminityMeet :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async getAllCommunityMeet(req:Request,res:Response):Promise<void>{
+        try{
+            const meetData = await this.mentorService.getAllCommunityMeet()
+            res.status(200).json({message:"Success",meetData})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+
+    async getMyCommunityMeet(req:Request,res:Response):Promise<void>{
+        try{
+            const mentorId = (req as any).mentor.id
+            const meetData = await this.mentorService.getMyCommunityMeet(mentorId)
+            res.status(200).json({message:"Success",meetData})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
     
- 
+    
 }
 export default MentorController

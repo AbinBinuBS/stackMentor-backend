@@ -109,7 +109,6 @@ class adminController {
         try{
             const id = req.body.id
             const active = req.body.isActive
-            console.log("1111111111111111111111111",req.body)
             const blocked = await this.adminService.blockUser(id,active)
             if(blocked){
                 res.status(200).json({message:"User unblocked successfully."})
@@ -124,6 +123,85 @@ class adminController {
         }
     }
 
+    async getgraphData(req: Request, res: Response): Promise<void> {
+        try {
+          const graphData = await this.adminService.getgraphData();
+          res.status(200).json({
+            message: "Success",
+            data: graphData
+          });
+        } catch (error) {
+          if (error instanceof Error) {
+            console.error(`Error in Admin getgraphData: ${error.message}`);
+            res.status(500).json({ message: 'Internal Server Error' });
+          }
+        }
+      }
+
+      async getAllQuestions(req:Request,res:Response):Promise<void>{
+        try{
+            const AllQuestions = await this.adminService.getAllQuestions()
+            res.status(200).json({message:"Success",questions:AllQuestions})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  mentor:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async editQAAnswer(req:Request,res:Response):Promise<void>{
+        try{
+            const { questionId , answer} = req.body
+            const editAnswer = await this.adminService.editQAAnswer(questionId,answer)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+      
+
+    async removeQuestion(req:Request,res:Response):Promise<void>{
+        try{
+           const questionId = req.params.id
+            const editAnswer = await this.adminService.removeQuestion(questionId)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async getMeets(req:Request,res:Response):Promise<void>{
+        try{
+            const meetData = await this.adminService.getMeets()
+            res.status(200).json({message:"Success",meetData})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+    
+    
 }
 
 export default adminController

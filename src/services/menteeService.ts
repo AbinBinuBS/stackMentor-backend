@@ -15,6 +15,8 @@ import ICheckIsBooked, {
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "../config/middilewareConfig";
+import { IQa } from "../models/qaModel";
+import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
 
 class MenteeService {
   constructor(private menteeRepository: MenteeRepository) {}
@@ -417,6 +419,21 @@ class MenteeService {
     }
   }
 
+  async walletPayment(menteeId:string,slotId:string): Promise<boolean>{
+    try{
+      const bookSlot = await this.menteeRepository.walletPayment(menteeId,slotId)
+      return true
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error(error.message)
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to fetch data at this moment.")
+      }
+    }
+  }
+
   async cancelSlot(slotId:string): Promise< void>{
     try{
       const slotData = await this.menteeRepository.cancelSlot(slotId)
@@ -432,7 +449,49 @@ class MenteeService {
     }
   }
 
+  async qaQuestion(title:string,body:string,menteeId:string): Promise<void>{
+    try{
+      const postData = await this.menteeRepository.qaQuestion(title,body,menteeId)
+      return postData
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error(error.message)
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to post data at this moment.")
+      }
+    }
+  }
 
+  async getAllQuestions(): Promise<IQa[] | undefined>{
+    try{
+      const postData = await this.menteeRepository.getAllQuestions()
+      return postData
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+        throw new Error(error.message)
+      } else {
+        console.error("error to fetch data:", error);
+        throw new Error("Unable to post data at this moment.")
+      }
+    }
+  }
+
+  async getMeets(): Promise<EnhancedCommunityMeet[]> {
+		try {
+			const meetData = await this.menteeRepository.getMeets();
+			return meetData
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+  
   
 }
 

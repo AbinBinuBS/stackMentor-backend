@@ -4,6 +4,8 @@ import { timeSheduleStatus, timeSheduleStatuses } from '../constants/status';
 export interface IBookedSlots extends Document {
   slotId: Types.ObjectId;
   userId?: Schema.Types.ObjectId;
+  roomId:string;
+  isAllowed:boolean;
   isAttended?: boolean;
   isExpired?: boolean;
   status?: timeSheduleStatuses;
@@ -33,6 +35,14 @@ const bookedSlotSchema: Schema<IBookedSlots> = new Schema(
       type: Boolean,
       default: false,
     },
+    roomId :{
+      type:String,
+      required:true
+    },
+    isAllowed: {
+      type:Boolean,
+      default:false
+    }
   },
   { timestamps: true }
 );

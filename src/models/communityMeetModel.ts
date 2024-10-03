@@ -1,16 +1,17 @@
 import { Schema, model, Document } from 'mongoose';
 
-export interface IScheduleTime extends Document {
+export interface ICommunityMeet extends Document {
   date: Date;
   startTime: string;
   endTime: string;
-  price: number;
+  about: string;
   mentorId: Schema.Types.ObjectId; 
-  isBooked: boolean;
-  bookingId?:unknown; 
+  RoomId:string;
+  image:string ;
+  stack:string;
 }
 
-const scheduleTimeSchema: Schema<IScheduleTime> = new Schema(
+const communityMeetSchema: Schema<ICommunityMeet> = new Schema(
   {
     date: {
       type: Date,
@@ -24,28 +25,31 @@ const scheduleTimeSchema: Schema<IScheduleTime> = new Schema(
       type: String,
       required: true,
     },
-    price: {
-      type: Number,
+    about: {
+      type: String,
       required: true,
+    },
+    stack: {
+        type:String,
+        required:true
     },
     mentorId: {
       type: Schema.Types.ObjectId,
       ref: 'Mentor',
       required: true,
     },
-    isBooked: {
-      type: Boolean,
-      required: true,
-      default: false,
+    RoomId: {
+      type:String,
+      required:true
     },
-    bookingId: {
-      type: Schema.Types.ObjectId,
-      ref: 'BookedSlot',
-    },
+    image: {
+        type :String,
+        required:true
+    }
   },
   { timestamps: true }
 );
 
-const ScheduleTime = model<IScheduleTime>('ScheduleTime', scheduleTimeSchema);
+const CommunityMeet = model<ICommunityMeet>('CommunityMeet', communityMeetSchema);
 
-export default ScheduleTime;
+export default CommunityMeet;

@@ -23,5 +23,11 @@ router.get('/getMentorDetails',adminAuthMiddleware, async(req,res)=>adminControl
 router.post('/updateMentorStatus' ,adminAuthMiddleware,async(req,res)=>adminController.updateMentorStatus(req,res))
 router.post('/getUser' ,adminAuthMiddleware,async(req,res)=>adminController.getUsers(req,res))
 router.put('/blockUser' ,adminAuthMiddleware,async(req,res)=>adminController.blockUser(req,res))
+router.get('/getgraphData',adminAuthMiddleware, async(req,res)=>adminController.getgraphData(req,res))
+router.get('/getAllQuestions',adminAuthMiddleware, async(req,res)=>adminController.getAllQuestions(req,res))
+router.put('/editAnswer',adminAuthMiddleware, async(req,res)=>adminController.editQAAnswer(req,res))
+router.delete('/removeQuestion/:id',adminAuthMiddleware, async(req,res)=>adminController.removeQuestion(req,res))
+router.get('/getMeets',adminAuthMiddleware, async(req,res)=>adminController.getMeets(req,res))
+
 
 export default router

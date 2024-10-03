@@ -23,3 +23,9 @@ export interface IAdminUserList {
     isActive: boolean;
     isVerified:string;
 }
+
+export interface IDashboardData {
+    monthlyRevenue: number[]; 
+    mentorCount: number;      
+    menteeCount: number;       
+}

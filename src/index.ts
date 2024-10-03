@@ -16,20 +16,16 @@ import session from 'express-session'
 
 
 
-// Define a User type
 interface User {
   _id: string;
   name: string;
 }
 
-// Initialize Express app
 const app = express();
 const PORT = 3001;
 
-// Connect to the database
 connectDB();
 
-// Middleware setup
 app.use(cors({
   origin: 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

@@ -1,7 +1,12 @@
-import { IAdminMentorList } from "../interfaces/servicesInterfaces/IAdmin";
+import { Types } from "mongoose";
+import { IAdminMentorList, IDashboardData } from "../interfaces/servicesInterfaces/IAdmin";
 import Mentee, { IMentee } from "../models/menteeModel";
 import Mentor, { IMentor } from "../models/mentorModel";
+import ScheduleTime from "../models/mentorTimeSchedule";
 import MentorVerifyModel, { IMentorVerify } from "../models/mentorValidate";
+import QA, { IQa } from "../models/qaModel";
+import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
+import CommunityMeet from "../models/communityMeetModel";
 
 class AdminRepository {
 	async findAdminByEmail(email: string): Promise<IMentee | null> {
@@ -169,6 +174,132 @@ class AdminRepository {
 			throw error;
 		}
 	}
+
+	async getGraphData(): Promise<IDashboardData> {
+		const currentYear = new Date().getFullYear();
+		const revenueData = await ScheduleTime.aggregate([
+			{
+				$match: {
+					date: {
+						$gte: new Date(`${currentYear}-01-01`),
+						$lt: new Date(`${currentYear + 1}-01-01`)
+					},
+					isBooked: true,
+				}
+			},
+			{
+				$group: {
+					_id: { $month: "$date" },
+					total: { $sum: { $multiply: ["$price", 0.3] } }  
+				}
+			},
+			{
+				$sort: { "_id": 1 } 
+			}
+		]);
+	
+		const monthlyRevenue = new Array(12).fill(0);
+	
+		revenueData.forEach((data) => {
+			monthlyRevenue[data._id - 1] = data.total; 
+		});
+	
+		const mentorCount = await Mentor.countDocuments();
+	
+		const menteeCount = await Mentee.countDocuments();
+	
+		return {
+			monthlyRevenue,
+			mentorCount,
+			menteeCount,
+		};
+	}
+
+	async getAllQuestions(): Promise<IQa[]> {
+		try {
+			const allQuestions = await QA.find()
+			  .sort({ isAnswered: 1, createdAt: -1 }); 
+		  
+			 return allQuestions
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+
+	  async editQAAnswer(questionId:string,answer:string): Promise<void> {
+		try {
+
+			const submitAnswer = await QA.findByIdAndUpdate(questionId)
+			if(!submitAnswer){
+				throw new Error("no question found")
+			}
+			submitAnswer.reply = answer
+			await submitAnswer.save()
+			return
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+
+	  async removeQuestion(questionId:string): Promise<void> {
+		try {
+			const submitAnswer = await QA.findByIdAndDelete(questionId)
+			if(submitAnswer){
+				return
+			}else{
+				throw new Error("Canot find the Question.")
+			}
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+
+	  async getMeets(): Promise<EnhancedCommunityMeet[]> {
+		try {
+		  const meetData = await CommunityMeet.find()
+			.sort({ date: 1, startTime: 1 }) 
+			.lean()
+			.exec();
+	  
+		  const enhancedMeetData = await Promise.all(
+			meetData.map(async (meet): Promise<EnhancedCommunityMeet> => {
+			  const mentorVerifyData = await MentorVerifyModel.findOne(
+				{ mentorId: meet.mentorId },
+				'name image'
+			  ).lean().exec();
+	  
+			  return {
+				...meet,
+				mentorInfo: mentorVerifyData 
+				  ? {
+					  name: mentorVerifyData.name,
+					  image: mentorVerifyData.image
+					}
+				  : undefined
+			  };
+			})
+		  );
+		  
+		  return enhancedMeetData;
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred while fetching community meet data.');
+		}
+	  }
+
+
+	  
 }
 
 export default AdminRepository;

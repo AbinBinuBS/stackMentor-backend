@@ -28,11 +28,16 @@ router.post('/rescheduleBooking',async(req,res)=>menteeController.rescheduleBook
 router.get('/getMenteeData',menteeAuthMiddleware ,async (req,res)=>menteeController.getMenteeData(req,res))
 router.get('/getWalletData',menteeAuthMiddleware ,async (req,res)=>menteeController.getWalletData(req,res))
 router.put('/cancelSlot',menteeAuthMiddleware ,async (req,res)=>menteeController.cancelSlot(req,res))
+router.post('/qaQuestion',menteeAuthMiddleware ,async (req,res)=>menteeController.qaQuestion(req,res))
+router.get('/getAllQuestions',menteeAuthMiddleware ,async (req,res)=>menteeController.getAllQuestions(req,res))
+router.get('/getMeets',menteeAuthMiddleware ,async (req,res)=>menteeController.getMeets(req,res))
+
 
 
 
 router.post('/checkAvailable',async(req,res)=>menteeController.checkIsBooked(req,res))
 router.post('/menteePayment',async(req,res)=>menteeController.paymentMethod(req,res))
+router.post('/payUsingWallet',menteeAuthMiddleware,async(req,res)=>menteeController.walletPayment(req,res))
 
 
 

@@ -2,9 +2,12 @@ import {
 	IAdminLogin,
 	IAdminMentorList,
 	IAdminUserList,
+	IDashboardData,
 	TokenResponce,
 } from "../interfaces/servicesInterfaces/IAdmin";
+import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
 import { IMentorVerify } from "../models/mentorValidate";
+import { IQa } from "../models/qaModel";
 import AdminRepository from "../repositories/adminRepository";
 import HashedPassword from "../utils/hashedPassword";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
@@ -152,6 +155,71 @@ class AdminService {
 			throw error;
 		}
 	}
+
+	async getgraphData(): Promise<IDashboardData> {
+		try {
+			const graphData = await this.adminRepository.getGraphData();
+			console.log("111111111111111111111111111111111111111",graphData)
+			return graphData;
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.error(error.message);
+		  } else {
+			console.error("An unknown error occurred");
+		  }
+		  throw error;
+		}
+	  }
+
+	  async getAllQuestions(): Promise<IQa[]> {
+		try {
+			const AllQuestions = await this.adminRepository.getAllQuestions();
+			return AllQuestions
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+	  
+	async editQAAnswer(questionId:string,answer:string): Promise<void> {
+		try {
+			const editAnswer = await this.adminRepository.editQAAnswer(questionId,answer);
+			return 
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async removeQuestion(questionId:string): Promise<void> {
+		try {
+			const editAnswer = await this.adminRepository.removeQuestion(questionId);
+			return 
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async getMeets(): Promise<EnhancedCommunityMeet[]> {
+		try {
+			const meetData = await this.adminRepository.getMeets();
+			return meetData
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	
 }
 
 export default AdminService;

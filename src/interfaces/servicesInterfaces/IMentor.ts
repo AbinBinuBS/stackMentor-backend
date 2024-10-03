@@ -1,4 +1,6 @@
-import { ObjectId } from "mongoose";
+import { ObjectId, Types } from "mongoose";
+import { ICommunityMeet } from "../../models/communityMeetModel";
+import { IMentor } from "../../models/mentorModel";
 
 
 export interface IMentorLogin {
@@ -90,3 +92,24 @@ export interface MentorVerifyData {
     updatedAt: Date;
     __v: number;
   }
+
+
+
+  export interface ICOmmunityFormData {
+    date: Date;
+    startTime: string;
+    endTime: string;
+    about: string;
+    mentorId?: Types.ObjectId; 
+    RoomId?:string;
+    image:string ;
+    stack:string;
+  }
+
+  export interface EnhancedCommunityMeet extends Omit<ICommunityMeet, 'mentorId'> {
+    mentorId: IMentor['_id'];
+    mentorInfo?: {
+      name: string;
+      image: string;
+    };
+    }

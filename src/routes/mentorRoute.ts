@@ -28,6 +28,20 @@ router.get('/getBookedSlots',mentorAuthMiddleware ,async (req,res)=>mentorContro
 router.get('/getMentorData',mentorAuthMiddleware ,async (req,res)=>mentorController.getMentorData(req,res))
 router.put('/editProfile',mentorAuthMiddleware,singleImageUpload,async(req,res)=>mentorController.editProfile(req,res))
 router.put('/changePassword',mentorAuthMiddleware,async(req,res)=>mentorController.changePassword(req,res))
+router.put('/cancelSlot',mentorAuthMiddleware,async(req,res)=>mentorController.cancelSlot(req,res))
+router.post('/allowConnection',mentorAuthMiddleware,async(req,res)=>mentorController.allowConnection(req,res))
+router.post('/endConnection',mentorAuthMiddleware,async(req,res)=>mentorController.endConnection(req,res))
+router.get('/getAllQuestions',mentorAuthMiddleware,async(req,res)=>mentorController.getAllQuestions(req,res))
+router.post('/submitAnswer',mentorAuthMiddleware,async(req,res)=>mentorController.submitQAAnswer(req,res))
+router.put('/editAnswer',mentorAuthMiddleware,async(req,res)=>mentorController.editQAAnswer(req,res))
+router.post('/createComminityMeet',mentorAuthMiddleware,singleImageUpload,async(req,res)=>mentorController.createComminityMeet(req,res))
+router.get('/getAllCommunityMeet',mentorAuthMiddleware ,async (req,res)=>mentorController.getAllCommunityMeet(req,res))
+router.get('/getMyCommunityMeet',mentorAuthMiddleware ,async (req,res)=>mentorController.getMyCommunityMeet(req,res))
+
+
+
+
+
 
 
 export default router;

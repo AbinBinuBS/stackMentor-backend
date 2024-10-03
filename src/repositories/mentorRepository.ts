@@ -1,5 +1,7 @@
 import e from "express";
 import {
+	EnhancedCommunityMeet,
+	ICOmmunityFormData,
 	ISlotMentor,
 	ISlotsList,
 	MentorVerification,
@@ -7,12 +9,21 @@ import {
 } from "../interfaces/servicesInterfaces/IMentor";
 import Mentor, { IMentor } from "../models/mentorModel";
 import ScheduleTime, { IScheduleTime } from "../models/mentorTimeSchedule";
-import MentorVerifyModel from "../models/mentorValidate";
+import MentorVerifyModel, { IMentorVerify } from "../models/mentorValidate";
 import MentorTempModel, { IMentorSchema } from "../models/tempregisterMentor";
 import HashedPassword from "../utils/hashedPassword";
 import { generateOTP, sendVerifyMail } from "../utils/mail";
 import mongoose ,{ObjectId}from "mongoose";
 import { Types } from 'mongoose'; 
+import { timeSheduleStatus } from "../constants/status";
+import Mentee from "../models/menteeModel";
+import BookedSlots from "../models/bookedSlots";
+import QA, { IQa } from "../models/qaModel";
+import CommunityMeet, { ICommunityMeet } from "../models/communityMeetModel";
+import CommunityRoomId from "../helper/communityMeetHelper";
+
+
+
 
 class MentorRepository {
 	async mentorRegister(
@@ -324,6 +335,7 @@ class MentorRepository {
 		try {
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
+	
 			const scheduledDatas = await ScheduleTime.aggregate([
 				{
 					$match: {
@@ -332,15 +344,31 @@ class MentorRepository {
 					},
 				},
 				{
+					$lookup: {
+						from: 'bookedslots', 
+						localField: '_id',   
+						foreignField: 'slotId', 
+						as: 'bookedSlots',  
+					},
+				},
+				{
 					$project: {
 						_id: 1,
 						date: 1,
 						startTime: 1,
 						endTime: 1,
+						bookedSlots: {
+							isAllowed: 1,
+							isAttended: 1,
+							isExpired: 1,
+							status: 1,
+							userId: 1,
+							roomId: 1,
+						},
 					},
 				},
 			]);
-
+	
 			return scheduledDatas;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -349,6 +377,7 @@ class MentorRepository {
 			throw new Error("An unexpected error occurred.");
 		}
 	}
+	
 
 	async deleteScheduledSlot(id: string): Promise<boolean> {
 		if (!Types.ObjectId.isValid(id)) {
@@ -381,28 +410,28 @@ class MentorRepository {
 		try {
 			const objectId = new mongoose.Types.ObjectId(id);
 			const today = new Date();
-			today.setHours(0, 0, 0, 0); // Set time to the start of today
+			today.setHours(0, 0, 0, 0); 
 	
 			const bookedSlots: ISlotMentor[] = await ScheduleTime.aggregate([
 				{
 					$match: {
 						mentorId: objectId,
 						isBooked: true,
-						date: { $gte: today }, // Filter for today's date and beyond
+						date: { $gte: today }, 
 					},
 				},
 				{
 					$lookup: {
-						from: 'bookedslots', // Ensure this matches the correct collection name for BookedSlots
+						from: 'bookedslots', 
 						localField: '_id',
 						foreignField: 'slotId',
-						as: 'bookingData', // You can rename this as needed
+						as: 'bookingData', 
 					},
 				},
 				{
 					$unwind: {
 						path: '$bookingData',
-						preserveNullAndEmptyArrays: true, // Optional: keeps the slots even if there are no bookings
+						preserveNullAndEmptyArrays: true, 
 					},
 				},
 				{
@@ -412,18 +441,22 @@ class MentorRepository {
 						endTime: 1,
 						price: 1,
 						isBooked: 1,
+						'bookingData._id': 1,
+						'bookingData.roomId': 1,
 						'bookingData.userId': 1,
 						'bookingData.status': 1, 
+						'bookingData.isAllowed': 1, 
+
 					},
 				},
 				{
 					$sort: {
-						date: 1, // Sort by date
-						startTime: 1, // Sort by start time if necessary
+						date: 1, 
+						startTime: 1, 
 					},
 				},
 			]);
-			console.log("5555555555555555555555555555555555555555555",bookedSlots)
+			
 	
 			return bookedSlots;
 		} catch (error) {
@@ -512,10 +545,235 @@ class MentorRepository {
 		  throw new Error('An unexpected error occurred.');
 		}
 	  }
+
+
+	  async cancelSlot(slotId: string): Promise<void> {
+		const session = await mongoose.startSession();
+		session.startTransaction();
+	
+		try {
+			const scheduleTime = await ScheduleTime.findById(slotId).session(session);
+			if (!scheduleTime) {
+				throw new Error('Scheduled slot not found');
+			}
+	
+			const bookedSlot = await BookedSlots.findOne({ slotId: scheduleTime._id }).session(session);
+			if (!bookedSlot) {
+				throw new Error('No booked slot found for this scheduled time');
+			}
+	
+			if (bookedSlot.userId) {
+				const mentee = await Mentee.findById(bookedSlot.userId).session(session);
+				if (!mentee) {
+					throw new Error('Mentee not found');
+				}
+	
+				mentee.wallet = (mentee.wallet || 0) + scheduleTime.price;
+				await mentee.save({ session });
+			}
+	
+			bookedSlot.status = timeSheduleStatus.CANCELLED; 
+			await bookedSlot.save({ session });
+	
+			
+			await scheduleTime.save({ session });
+	
+			await session.commitTransaction();
+		} catch (error) {
+			await session.abortTransaction();
+			throw new Error(`Cancellation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		} finally {
+			session.endSession();
+		}
+	}
+	  
+	async allowConnection(bookedId:string): Promise<void> {
+		try {
+			const setConnection = await BookedSlots.findByIdAndUpdate(
+				bookedId,                
+				{ isAllowed: true },      
+				{ new: true }              
+			  );
+			  return 
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+
+	  async endConnection(bookedId:string): Promise<void> {
+		try {
+			const setConnection = await BookedSlots.findByIdAndUpdate(
+				bookedId,                
+				{ isAllowed: false,isAttended : true,status : timeSheduleStatus.COMPLETED  },
+				{ new: true }              
+			  );
+			  return 
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+
+	  async getAllQuestions(mentorId:string): Promise<IQa[]> {
+		try {
+			const allQuestions = await QA.find({
+				$or: [
+				  { isAnswered: false },
+				  { mentorId: mentorId }
+				]
+			  })
+			  .sort({ isAnswered: 1, createdAt: -1 }); 
+		  
+			 return allQuestions
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+
+	  async submitQAAnswer(questionId:string,mentorId:string,answer:string): Promise<void> {
+		try {
+
+			const submitAnswer = await QA.findById(questionId)
+			if(!submitAnswer){
+				throw new Error("no question found")
+			}
+			submitAnswer.reply = answer
+			submitAnswer.isAnswered = true
+			submitAnswer.mentorId = mentorId as unknown as Types.ObjectId
+			await submitAnswer.save()
+			return
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+	
+	  async editQAAnswer(questionId:string,mentorId:string,answer:string): Promise<void> {
+		try {
+
+			const submitAnswer = await QA.findByIdAndUpdate(questionId)
+			if(!submitAnswer){
+				throw new Error("no question found")
+			}
+			const mentorID = mentorId as unknown as Types.ObjectId
+			submitAnswer.reply = answer
+			await submitAnswer.save()
+			return
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+
+	  async createComminityMeet(formData:ICOmmunityFormData,mentorId:string,imageUrl:string): Promise<void> {
+		try {
+			const RoomId = await CommunityRoomId()
+			const communityMeet = new CommunityMeet({
+				date:formData.date,
+				startTime:formData.startTime,
+				endTime:formData.endTime,
+				mentorId:mentorId,
+				about: formData.about,
+				RoomId,
+				image: imageUrl,
+				stack:formData.stack
+
+			})
+			await communityMeet.save()
+			return
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+
+	 
+	  
+	  async getAllCommunityMeet(): Promise<EnhancedCommunityMeet[]> {
+		try {
+		  const meetData = await CommunityMeet.find()
+			.sort({ createdAt: -1 })
+			.lean()
+			.exec();
+	  
+		  const enhancedMeetData = await Promise.all(
+			meetData.map(async (meet): Promise<EnhancedCommunityMeet> => {
+			  const mentorVerifyData = await MentorVerifyModel.findOne(
+				{ mentorId: meet.mentorId },
+				'name image'
+			  ).lean().exec();
+	  
+			  return {
+				...meet,
+				mentorInfo: mentorVerifyData 
+				  ? {
+					  name: mentorVerifyData.name,
+					  image: mentorVerifyData.image
+					}
+				  : undefined
+			  };
+			})
+		  );
+		  return enhancedMeetData;
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred while fetching community meet data.');
+		}
+	  }
+	  
+	  async getMyCommunityMeet(mentorId: string): Promise<EnhancedCommunityMeet[]> {
+		try {
+		  const meetData = await CommunityMeet.find({ mentorId }) // Filter by mentorId
+			.sort({ date: 1, startTime: 1 }) // Sort by date and startTime
+			.lean()
+			.exec();
+	  
+		  const enhancedMeetData = await Promise.all(
+			meetData.map(async (meet): Promise<EnhancedCommunityMeet> => {
+			  const mentorVerifyData = await MentorVerifyModel.findOne(
+				{ mentorId: meet.mentorId },
+				'name image'
+			  ).lean().exec();
+	  
+			  return {
+				...meet,
+				mentorInfo: mentorVerifyData
+				  ? {
+					  name: mentorVerifyData.name,
+					  image: mentorVerifyData.image
+					}
+				  : undefined
+			  };
+			})
+		  );
+		  return enhancedMeetData;
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred while fetching community meet data.');
+		}
+	  }
+	  
+	   
 	  
 
-	
-	
-	
+	  
 }
 export default MentorRepository;

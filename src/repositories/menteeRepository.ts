@@ -4,6 +4,7 @@ import ICheckIsBooked, {
 	ICombinedData,
 	IMentorShowcase,
 	IMentorVerification,
+	IQaData,
 	ISlot,
 } from "../interfaces/servicesInterfaces/IMentee";
 import Mentee from "../models/menteeModel";
@@ -15,6 +16,10 @@ import HashedPassword from "../utils/hashedPassword";
 import { generateOTP, sendVerifyMail } from "../utils/mail";
 import BookedSlots from "../models/bookedSlots";
 import { timeSheduleStatus } from "../constants/status";
+import generateRoomId from "../helper/randomIdHelprt";
+import QA, { IQa } from "../models/qaModel";
+import CommunityMeet from "../models/communityMeetModel";
+import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
 
 class MenteeRepository {
 	async menteeRegister(
@@ -278,71 +283,98 @@ class MenteeRepository {
 
 	async getMentorSlots(id: string): Promise<ICombinedData> {
 		try {
-			const objectId = new mongoose.Types.ObjectId(id);
-			const tomorrow = new Date();
-			tomorrow.setDate(tomorrow.getDate());
-			const mentor = await MentorVerifyModel.find({ _id: id });
-			if (!mentor) {
-				throw new Error("internal server Error");
-			}
-			const slotsData = await ScheduleTime.aggregate([
-				{
-					$match: {
-						mentorId: objectId,
-						date: { $gte: tomorrow },
-					},
-				},
-				{
-					$lookup: {
-						from: "mentorvarifies",
-						localField: "mentorId",
-						foreignField: "mentorId",
-						as: "mentorVerification",
-					},
-				},
-				{
-					$unwind: {
-						path: "$mentorVerification",
-						preserveNullAndEmptyArrays: true,
-					},
-				},
-				{
-					$project: {
-						_id: 1,
-						date: 1,
-						startTime: 1,
-						endTime: 1,
-						price: 1,
-						isBooked: 1,
-						mentorVerification: {
-							name: { $ifNull: ["$mentorVerification.name", "N/A"] },
-							image: { $ifNull: ["$mentorVerification.image", "N/A"] },
-							yearsOfExperience: {
-								$ifNull: ["$mentorVerification.yearsOfExperience", "N/A"],
-							},
-						},
-					},
-				},
-			]);
+		  const objectId = new mongoose.Types.ObjectId(id);
+		  const tomorrow = new Date();
+		  tomorrow.setDate(tomorrow.getDate());
+	  
+		  const mentor = await MentorVerifyModel.find({ _id: id });
+		  if (!mentor) {
+			throw new Error("Internal server Error: Mentor not found");
+		  }
+	  
 
-			const mentorVerification: IMentorVerification =
-				slotsData.length > 0
-					? slotsData[0].mentorVerification
-					: { name: "N/A", image: "N/A", yearsOfExperience: "N/A" };
-
-			return {
-				slots: slotsData as ISlot[],
-				mentorVerification,
-			};
+		  const slotsData = await ScheduleTime.aggregate([
+			{
+			  $match: {
+				mentorId: objectId,
+				date: { $gte: tomorrow }, 
+			  },
+			},
+			{
+			  $lookup: {
+				from: "mentorvarifies",
+				localField: "mentorId",
+				foreignField: "mentorId",
+				as: "mentorVerification",
+			  },
+			},
+			{
+			  $unwind: {
+				path: "$mentorVerification",
+				preserveNullAndEmptyArrays: true, 
+			  },
+			},
+			{
+			  $lookup: {
+				from: "bookedslots", 
+				localField: "_id",
+				foreignField: "slotId",
+				as: "bookingInfo",
+			  },
+			},
+			{
+			  $unwind: {
+				path: "$bookingInfo",
+				preserveNullAndEmptyArrays: true, 
+			  },
+			},
+			{
+			  $match: {
+				$or: [
+				  { "bookingInfo.status": { $ne: "cancelled" } },
+				  { "bookingInfo.status": { $exists: false } },  
+				],
+			  },
+			},
+			{
+			  $project: {
+				_id: 1,
+				date: 1,
+				startTime: 1,
+				endTime: 1,
+				price: 1,
+				isBooked: 1,
+				"mentorVerification.name": { $ifNull: ["$mentorVerification.name", "N/A"] },
+				"mentorVerification.image": { $ifNull: ["$mentorVerification.image", "N/A"] },
+				"mentorVerification.yearsOfExperience": {
+				  $ifNull: ["$mentorVerification.yearsOfExperience", "N/A"],
+				},
+				"bookingInfo.roomId": { $ifNull: ["$bookingInfo.roomId", "N/A"] },
+				"bookingInfo.status": { $ifNull: ["$bookingInfo.status", "N/A"] },
+			  },
+			},
+		  ]);
+	  
+		  const mentorVerification: IMentorVerification =
+			slotsData.length > 0
+			  ? slotsData[0].mentorVerification
+			  : { name: "N/A", image: "N/A", yearsOfExperience: "N/A" };
+	  
+		  return {
+			slots: slotsData as ISlot[],
+			mentorVerification,
+		  };
 		} catch (error) {
-			if (error instanceof Error) {
-				console.error("Error:", error.message);
-			} else {
-				console.log("An unknown error occurred");
-			}
-			throw error;
+		  if (error instanceof Error) {
+			console.error("Error:", error.message);
+		  } else {
+			console.log("An unknown error occurred");
+		  }
+		  throw error;
 		}
-	}
+	  }
+	  
+	  
 
 
 async getBookedSlots(userId: string): Promise<BookedSlot[]> {
@@ -353,13 +385,12 @@ async getBookedSlots(userId: string): Promise<BookedSlot[]> {
             {
                 $match: {
                     userId: new mongoose.Types.ObjectId(userId),
-                    isAttended: false, // Assuming you want only un-attended slots
-                    isExpired: false,   // Assuming you want only non-expired slots
+                    isExpired: false,   
                 },
             },
             {
                 $lookup: {
-                    from: 'scheduletimes', // The collection name for ScheduleTime
+                    from: 'scheduletimes', 
                     localField: 'slotId',
                     foreignField: '_id',
                     as: 'scheduleData',
@@ -397,7 +428,7 @@ async getBookedSlots(userId: string): Promise<BookedSlot[]> {
             },
             {
                 $lookup: {
-                    from: 'mentorvarifies', // Ensure this collection name is correct
+                    from: 'mentorvarifies', 
                     localField: 'scheduleData.mentorId',
                     foreignField: 'mentorId',
                     as: 'mentorData',
@@ -416,6 +447,9 @@ async getBookedSlots(userId: string): Promise<BookedSlot[]> {
                     'mentorData.name': 1,
                     'mentorData.image': 1,
                     startDateTime: 1,
+					status:1,
+					roomId:1,
+					isAllowed:1
                 },
             },
             {
@@ -492,19 +526,16 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 	session.startTransaction();
   
 	try {
-	  // Find the booked slot using the old BookedSlot ID
 	  const oldBookedSlot = await BookedSlots.findById(oldId).session(session);
 	  if (!oldBookedSlot) {
 		throw new Error("Old booked slot not found");
 	  }
   
-	  // Fetch the corresponding old schedule time using the slotId from the booked slot
 	  const oldSchedule = await ScheduleTime.findById(oldBookedSlot.slotId).session(session);
 	  if (!oldSchedule) {
 		throw new Error("Old schedule time not found");
 	  }
   
-	  // Find the new schedule time using the newId provided
 	  const newSchedule = await ScheduleTime.findById(newId).session(session);
 	  if (!newSchedule) {
 		throw new Error("New schedule time not found");
@@ -573,11 +604,12 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 		  if (schedule.isBooked) {
 			throw new Error("Slot is already booked");
 		  }
-	  
+		  const roomId = await generateRoomId()
 		  const bookedSlot = new BookedSlots({
 			slotId: schedule._id, 
 			userId: userId,
 			status: timeSheduleStatus.CONFIRMED,
+			roomId,
 			isAttended: false,
 			isExpired: false,
 		  });
@@ -598,6 +630,53 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 		  throw error;
 		}
 	  }
+
+	  async walletPayment(userId: string,slotId:string): Promise<IScheduleTime | null> {
+		try {
+			const schedule = await ScheduleTime.findById(slotId);
+			if (!schedule) {
+				throw new Error("Schedule not found");
+			}
+		
+			if (schedule.isBooked) {
+				throw new Error("Slot is already booked");
+			}
+			console.log(userId)
+			const walletBalance = await Mentee.findById(userId);
+			console.log("111111111111111111111111111111111",walletBalance)
+			if (!walletBalance || walletBalance.wallet === undefined) {
+				throw new Error("Wallet balance not found");
+			  }
+			if(walletBalance.wallet < schedule.price){
+				throw new Error("insufficient balance")
+			}
+			const roomId = await generateRoomId()
+		  	const bookedSlot = new BookedSlots({
+			slotId: schedule._id, 
+			userId: userId,
+			status: timeSheduleStatus.CONFIRMED,
+			roomId,
+			isAttended: false,
+			isExpired: false,
+		  });
+	  
+		  const savedBookedSlot = await bookedSlot.save();
+		  schedule.isBooked = true;
+		  schedule.bookingId = savedBookedSlot._id as Types.ObjectId 
+		  walletBalance.wallet = walletBalance.wallet - schedule.price;
+        	await walletBalance.save(); 
+		  const updatedSchedule = await schedule.save();
+		  walletBalance.wallet - schedule.price
+		  return updatedSchedule;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error("Error:", error.message);
+			} else {
+				console.log("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
 
 	  async getWalletData(menteeId: string): Promise<IMentee | undefined> {
 		try {
@@ -642,11 +721,20 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 			await mentee.save({ session });
 		  }
 	  
+		  const newScheduleTime = new ScheduleTime({
+			date: scheduleTime.date,
+			startTime: scheduleTime.startTime,
+			endTime: scheduleTime.endTime,
+			price: scheduleTime.price,
+			mentorId: scheduleTime.mentorId,
+			isBooked: false, 
+		  });
+	  
+		  await newScheduleTime.save({ session });
+	  
 		  bookedSlot.status = 'cancelled';
 		  await bookedSlot.save({ session });
 	  
-		  scheduleTime.isBooked = false;
-		  scheduleTime.bookingId = undefined;
 		  await scheduleTime.save({ session });
 	  
 		  await session.commitTransaction();
@@ -663,9 +751,77 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 		  throw error;
 		}
 	  }
+
+
+	  async qaQuestion(title:string,body:string,menteeId:string):Promise<void>{
+		try{
+			const qa = new QA({title,body,menteeId})
+			await qa.save()
+			return
+		}catch(error){
+			if (error instanceof Error) {
+				console.error('Error:', error.message);
+			  } else {
+				console.log('An unknown error occurred');
+			  }
+			  throw error;
+		}
+	  }
+
+	  async getAllQuestions():Promise<IQa[] | undefined>{
+		try{
+			const questions:IQa[] = await QA.find()
+            .populate('menteeId', 'name')
+            .populate('mentorId', 'name'); 
+			return questions
+		}catch(error){
+			if (error instanceof Error) {
+				console.error('Error:', error.message);
+			  } else {
+				console.log('An unknown error occurred');
+			  }
+			  throw error;
+		}
+	  }
+
+	  async getMeets(): Promise<EnhancedCommunityMeet[]> {
+		try {
+		  const meetData = await CommunityMeet.find()
+			.sort({ date: 1, startTime: 1 }) 
+			.lean()
+			.exec();
+	  
+		  const enhancedMeetData = await Promise.all(
+			meetData.map(async (meet): Promise<EnhancedCommunityMeet> => {
+			  const mentorVerifyData = await MentorVerifyModel.findOne(
+				{ mentorId: meet.mentorId },
+				'name image'
+			  ).lean().exec();
+	  
+			  return {
+				...meet,
+				mentorInfo: mentorVerifyData 
+				  ? {
+					  name: mentorVerifyData.name,
+					  image: mentorVerifyData.image
+					}
+				  : undefined
+			  };
+			})
+		  );
+		  
+		  return enhancedMeetData;
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred while fetching community meet data.');
+		}
+	  }
+	  
 	
 	  
-	  
+	   
 }
 
 export default MenteeRepository;

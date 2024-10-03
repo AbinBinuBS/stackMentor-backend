@@ -1,25 +1,25 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IMessage extends Document {
-  sender: mongoose.Schema.Types.ObjectId; // Reference to the user sending the message
-  content: string; // Message content
-  chat: mongoose.Schema.Types.ObjectId; // Reference to the chat
-  readBy: mongoose.Schema.Types.ObjectId[]; // Users who have read the message
-  createdAt?: Date; // Timestamp for when the message was created
-  updatedAt?: Date; // Timestamp for when the message was updated
+  sender: mongoose.Schema.Types.ObjectId; 
+  content: string; 
+  chat: mongoose.Schema.Types.ObjectId; 
+  readBy: mongoose.Schema.Types.ObjectId[]; 
+  createdAt?: Date; 
+  updatedAt?: Date; 
 }
 
 const messageSchema: Schema = new Schema(
   {
     sender: {
       type: mongoose.Schema.Types.ObjectId,
-      refPath: "senderModel", // This allows dynamic reference based on senderModel
+      refPath: "senderModel", 
       required: true,
     },
     senderModel: {
       type: String,
       required: true,
-      enum: ["MentorVarify", "Mentee"], // Ensure these match your actual model names
+      enum: ["MentorVarify", "Mentee"],
     },
     content: {
       type: String,
@@ -28,21 +28,21 @@ const messageSchema: Schema = new Schema(
     },
     chat: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Chat", // This should match your Chat model
+      ref: "Chat", 
       required: true,
     },
     readBy: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        refPath: "readByModel", // This allows dynamic reference based on readByModel
+        refPath: "readByModel",
       },
     ],
     readByModel: {
       type: String,
-      enum: ["MentorVarify", "Mentee"], // Ensure these match your actual model names
+      enum: ["MentorVarify", "Mentee"], 
     },
   },
-  { timestamps: true } // Automatically adds createdAt and updatedAt fields
+  { timestamps: true } 
 );
 
 const Message = mongoose.model<IMessage>("Message", messageSchema);

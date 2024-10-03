@@ -194,6 +194,7 @@ class MenteeController {
 
     async getMentorData(req:Request,res:Response): Promise<void>{
         try{
+            
             const level = req.query.level as string
             const mentorsData = await this.menteeService.getMentors(level)
             res.status(200).json({mentorData:mentorsData})
@@ -301,14 +302,58 @@ class MenteeController {
     }
 
 
+    async qaQuestion(req:Request,res:Response):Promise<void>{
+        try{
+            const menteeId = ( req as any).mentee.id
+            const {title,body} = req.body
+            const a = await this.menteeService.qaQuestion(title,body,menteeId)
+            res.status(200).json({message:"Success" })
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+    
+
+    async getAllQuestions(req:Request,res:Response):Promise<void>{
+        try{
+            const getQuestions = await this.menteeService.getAllQuestions()
+            res.status(200).json({message:"Success",questions:getQuestions })
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
     
     
+    async getMeets(req:Request,res:Response):Promise<void>{
+        try{
+            const meetData = await this.menteeService.getMeets()
+            res.status(200).json({message:"Success",meetData})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
     
 
-
-
-
-
+    
     
 
 
@@ -359,6 +404,33 @@ class MenteeController {
         } catch (error) {
             console.log(error);
             res.status(500).json({ message: "An error occurred while processing your request." });
+        }
+    }
+
+    async walletPayment(req:Request,res:Response): Promise<void> {
+        try{
+            const menteeId = ( req as any).mentee.id
+            const slotId = req.body.sessionId
+            const bookSlot = await this.menteeService.walletPayment(menteeId,slotId)
+            if(bookSlot){
+                res.status(200).json({message:"Success"})
+                return
+            }
+        }catch(error){
+            if(error instanceof Error){
+                if(error.message == "Slot is already booked"){
+                    res.status(409).json({message:" This slot is already booked."})
+                    return
+                }else if(error.message == "insufficient balance"){
+                    res.status(403).json({message:"insufficient balance"})
+                    return
+                }else{
+                    res.status(500).json({ message: "An error occurred while processing your request." });
+                    return
+                }
+            }else{
+                res.status(500).json({ message: "An error occurred while processing your request." });
+            }
         }
     }
     

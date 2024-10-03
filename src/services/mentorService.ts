@@ -7,6 +7,8 @@ import MentorRepository from "../repositories/mentorRepository";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import { mentorPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
 import {
+	EnhancedCommunityMeet,
+	ICOmmunityFormData,
 	IMentorLogin,
 	ISlotMentor,
 	ISlotsList,
@@ -21,6 +23,8 @@ import MentorVerifyModel from "../models/mentorValidate";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { IScheduleTime } from "../models/mentorTimeSchedule";
 import { JWT_SECRET } from "../config/middilewareConfig";
+import { IQa } from "../models/qaModel";
+import { ICommunityMeet } from "../models/communityMeetModel";
 
 dotenv.config();
 
@@ -426,9 +430,117 @@ class MentorService {
 		}
 	}
 
-	
-	
+	async cancelSlot(slotId: string): Promise<void> {
+		try {
+			const cancelSlot = await this.mentorRepository.cancelSlot(slotId);
+			return cancelSlot
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
 
+	async allowConnection(bookedId: string): Promise<void> {
+		try {
+			const setConnection = await this.mentorRepository.allowConnection(bookedId);
+			return 
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async endConnection(bookedId: string): Promise<void> {
+		try {
+			const endConnection = await this.mentorRepository.endConnection(bookedId);
+			return 
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+
+	async getAllQuestions(mentorId:string): Promise<IQa[]> {
+		try {
+			const AllQuestions = await this.mentorRepository.getAllQuestions(mentorId);
+			return AllQuestions
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async submitQAAnswer(questionId:string,mentorId:string,answer:string): Promise<void> {
+		try {
+			const submitAnswer = await this.mentorRepository.submitQAAnswer(questionId,mentorId,answer);
+			return 
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async editQAAnswer(questionId:string,mentorId:string,answer:string): Promise<void> {
+		try {
+			const editAnswer = await this.mentorRepository.editQAAnswer(questionId,mentorId,answer);
+			return 
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async createComminityMeet(formData:ICOmmunityFormData,mentorId:string,imageUrl:string): Promise<void> {
+		try {
+			const editAnswer = await this.mentorRepository.createComminityMeet(formData,mentorId,imageUrl);
+			return 
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async getAllCommunityMeet(): Promise<EnhancedCommunityMeet[]> {
+		try {
+			const meetData = await this.mentorRepository.getAllCommunityMeet();
+			return meetData
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async getMyCommunityMeet(mentorId:string): Promise<EnhancedCommunityMeet[]> {
+		try {
+			const meetData = await this.mentorRepository.getMyCommunityMeet(mentorId);
+			return meetData
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+	
+	
+	
 	
 }
 
