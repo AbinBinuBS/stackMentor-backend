@@ -1,7 +1,7 @@
 
 
 
-import * as passport from 'passport';
+import passport from 'passport';
 import { Strategy as GoogleStrategy, VerifyCallback } from 'passport-google-oauth2';
 import dotenv from 'dotenv'
 
@@ -22,7 +22,6 @@ passport.serializeUser((user: User, done: (err: any, id?: any) => void) => {
 passport.deserializeUser((user: User, done: (err: any, id?: any) => void) => {
     done(null, user);
 });
-
 
 
 
