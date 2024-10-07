@@ -37,6 +37,8 @@ router.put('/editAnswer',mentorAuthMiddleware,async(req,res)=>mentorController.e
 router.post('/createComminityMeet',mentorAuthMiddleware,singleImageUpload,async(req,res)=>mentorController.createComminityMeet(req,res))
 router.get('/getAllCommunityMeet',mentorAuthMiddleware ,async (req,res)=>mentorController.getAllCommunityMeet(req,res))
 router.get('/getMyCommunityMeet',mentorAuthMiddleware ,async (req,res)=>mentorController.getMyCommunityMeet(req,res))
+router.put('/cancelCommunityMeet/:meetId',mentorAuthMiddleware ,async (req,res)=>mentorController.cancelCommunityMeet(req,res))
+
 
 
 

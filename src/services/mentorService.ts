@@ -538,6 +538,19 @@ class MentorService {
 			throw new Error("An unexpected error occurred.");
 		}
 	}
+
+
+	async cancelCommunityMeet(meetId:string,about:string): Promise<void> {
+		try {
+			const cancelMeet = await this.mentorRepository.cancelCommunityMeet(meetId,about);
+			return 
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
 	
 	
 	

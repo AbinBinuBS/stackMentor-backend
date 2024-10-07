@@ -629,6 +629,23 @@ class MentorController{
             }
         }
     }
+
+    async cancelCommunityMeet(req:Request,res:Response):Promise<void>{
+        try{
+            const meetId = req.params.meetId
+            const about = req.body.data.reason
+            const cancelMeet = await this.mentorService.cancelCommunityMeet(meetId,about)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
     
     
 }

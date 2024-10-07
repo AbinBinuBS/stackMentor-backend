@@ -739,8 +739,8 @@ class MentorRepository {
 	  
 	  async getMyCommunityMeet(mentorId: string): Promise<EnhancedCommunityMeet[]> {
 		try {
-		  const meetData = await CommunityMeet.find({ mentorId }) // Filter by mentorId
-			.sort({ date: 1, startTime: 1 }) // Sort by date and startTime
+		  const meetData = await CommunityMeet.find({ mentorId }) 
+			.sort({ date: 1, startTime: 1 }) 
 			.lean()
 			.exec();
 	  
@@ -768,6 +768,22 @@ class MentorRepository {
 			console.log(error.message);
 		  }
 		  throw new Error('An unexpected error occurred while fetching community meet data.');
+		}
+	  }
+
+	  async cancelCommunityMeet(meetId:string,about:string): Promise<boolean> {
+		try {
+			const cancelMeet = await CommunityMeet.findByIdAndUpdate(meetId,{about:about},{ new: true })
+			if(cancelMeet){
+				return true
+			}else{
+				throw new Error("meetId not found")
+			}
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
 		}
 	  }
 	  
