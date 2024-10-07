@@ -11,7 +11,7 @@ import messageRouter from './routes/messageRoute';
 import passportAuth from './config/passport'
 import Chat from './models/chatModel';
 import authRouter from './routes/authRouter'
-import cookieParser = require('cookie-parser')
+import cookieParser from 'cookie-parser'
 import session from 'express-session'
 
 

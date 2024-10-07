@@ -1,18 +1,7 @@
-// const passport = require('passport');
-// const GoogleStrategy = require('passport-google-oauth2').Strategy;
-
-// passport.serializeUser((user , done) => {
-//     done(null , user);
-// })
-// passport.deserializeUser(function(user, done) {
-//     done(null, user);
-// });
 
 
 
-
-
-import passport from 'passport';
+import * as passport from 'passport';
 import { Strategy as GoogleStrategy, VerifyCallback } from 'passport-google-oauth2';
 import dotenv from 'dotenv'
 
@@ -33,7 +22,6 @@ passport.serializeUser((user: User, done: (err: any, id?: any) => void) => {
 passport.deserializeUser((user: User, done: (err: any, id?: any) => void) => {
     done(null, user);
 });
-
 
 
 
