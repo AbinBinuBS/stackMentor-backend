@@ -24,23 +24,23 @@ export const googleAuthCallback = passportAuth.authenticate('google', {
 
 export const authSuccess = async(req: AuthenticatedRequest, res: Response) => {
     if (!req.user) {
-        return res.redirect('/auth/callback/failure');
+        return res.redirect('https://999bookstore.online/auth/callback/failure');
     }
 
     try {
     const email =  req.user.email
-    const checkMailResponse = await axios.post("http://localhost:3001/api/mentees/checkMail",{email})
+    const checkMailResponse = await axios.post("https://999bookstore.online/api/mentees/checkMail",{email})
     if(checkMailResponse.data.emailExists){
         const accessToken = checkMailResponse.data.accessToken
         const refreshToken = checkMailResponse.data.refreshToken
-       return res.redirect(`http://localhost:5173/?accessToken=${accessToken}&refreshToken=${refreshToken}`)
+       return res.redirect(`https://999bookstore.online/?accessToken=${accessToken}&refreshToken=${refreshToken}`)
     }else{
         const userName = req.user.displayName
-        const storeMail = await axios.post("http://localhost:3001/api/mentees/googleRegister",{userName,password:'123456',email})
+        const storeMail = await axios.post("https://999bookstore.online/api/mentees/googleRegister",{userName,password:'123456',email})
         if(storeMail){
             const accessToken = storeMail.data.accessToken
             const refreshToken= storeMail.data.refreshToken
-            return res.redirect(`http://localhost:5173/?accessToken=${accessToken}&refreshToken=${refreshToken}`);
+            return res.redirect(`https://999bookstore.online/?accessToken=${accessToken}&refreshToken=${refreshToken}`);
         }
     }
     } catch (error) {
