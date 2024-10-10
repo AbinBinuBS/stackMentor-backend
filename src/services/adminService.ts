@@ -159,7 +159,6 @@ class AdminService {
 	async getgraphData(): Promise<IDashboardData> {
 		try {
 			const graphData = await this.adminRepository.getGraphData();
-			console.log("111111111111111111111111111111111111111",graphData)
 			return graphData;
 		} catch (error) {
 		  if (error instanceof Error) {

@@ -113,7 +113,6 @@ class MenteeController {
     async resendOtp(req:Request,res:Response):Promise<void>{
         try{
             let email = req.body.email
-            console.log("email",email)
             let verifyResentOtp = await this.menteeService.resendOtp(email)
             if(verifyResentOtp){
                 res.status(200).json({message:"Resend otp is Successfull"})
@@ -243,8 +242,6 @@ class MenteeController {
         try{
             const oldId = req.body.oldSlotId
             const newId = req.body.newSlotId 
-            console.log("1111111111111111111111",oldId)
-            console.log("2222222222222222222222",newId)
             await this.menteeService.rescheduleBooking(oldId,newId)
             res.status(200).json({message:"Success"})
         }catch(error){

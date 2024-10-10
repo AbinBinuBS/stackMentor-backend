@@ -70,11 +70,9 @@ const mentorAuthMiddleware = async (req: Request, res: Response, next: NextFunct
                 (req as any).mentor = jwt.verify(newAccessToken, JWT_SECRET) as mentorPayload;
                 next();
             } catch (refreshError) {
-                console.error('Error refreshing token:', refreshError);
                 return res.status(401).json({ message: 'Unauthorized, refresh token invalid or expired' });
             }
         } else {
-            console.error('Error verifying token:', err);
             return res.status(401).json({ message: 'Unauthorized, invalid or expired token' });
         }
     }

@@ -194,7 +194,6 @@ class MentorRepository {
 		try {
 			const mentor = await Mentor.findOne({ email });
 			if (!mentor) {
-				console.error("Mentor not found");
 				return false;
 			}
 			const hashedPassword = await HashedPassword.hashPassword(password);
@@ -216,7 +215,6 @@ class MentorRepository {
 	async isVerifiedMentor(id: string): Promise<string | undefined> {
 		try {
 			const mentorData = await Mentor.findById({ _id: id });
-			console.log(mentorData);
 			return mentorData?.isVerified;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -381,7 +379,6 @@ class MentorRepository {
 
 	async deleteScheduledSlot(id: string): Promise<boolean> {
 		if (!Types.ObjectId.isValid(id)) {
-			console.error("Invalid ID format");
 			return false;
 		}
 
@@ -391,7 +388,6 @@ class MentorRepository {
 				throw new Error("This slots already booked.")
 			}
 			if (!slotData) {
-				console.error("No slot found with the given ID");
 				return false;
 			}
 			const removeSlot = await ScheduleTime.findByIdAndDelete(id);
@@ -514,8 +510,6 @@ class MentorRepository {
 		  if (!updatedMentorVerify) {
 			throw new Error("Mentor verification data not found.");
 		  }
-		  console.log("updated mentor",updatedMentor)
-		  console.log("mentorVerify:", updatedMentorVerify,)
 		} catch (error) {
 		  if (error instanceof Error) {
 			console.error(error.message);
@@ -705,8 +699,13 @@ class MentorRepository {
 	  
 	  async getAllCommunityMeet(): Promise<EnhancedCommunityMeet[]> {
 		try {
-		  const meetData = await CommunityMeet.find()
-			.sort({ createdAt: -1 })
+		  const today = new Date();
+		  today.setHours(0, 0, 0, 0);
+	  
+		  const meetData = await CommunityMeet.find({
+			date: { $gte: today }, 
+		  })
+			.sort({ createdAt: -1 }) 
 			.lean()
 			.exec();
 	  
@@ -715,31 +714,42 @@ class MentorRepository {
 			  const mentorVerifyData = await MentorVerifyModel.findOne(
 				{ mentorId: meet.mentorId },
 				'name image'
-			  ).lean().exec();
+			  )
+				.lean()
+				.exec();
 	  
 			  return {
 				...meet,
-				mentorInfo: mentorVerifyData 
+				mentorInfo: mentorVerifyData
 				  ? {
 					  name: mentorVerifyData.name,
-					  image: mentorVerifyData.image
+					  image: mentorVerifyData.image,
 					}
-				  : undefined
+				  : undefined,
 			  };
 			})
 		  );
+	  
 		  return enhancedMeetData;
 		} catch (error) {
 		  if (error instanceof Error) {
 			console.log(error.message);
 		  }
-		  throw new Error('An unexpected error occurred while fetching community meet data.');
+		  throw new Error(
+			'An unexpected error occurred while fetching community meet data.'
+		  );
 		}
 	  }
 	  
 	  async getMyCommunityMeet(mentorId: string): Promise<EnhancedCommunityMeet[]> {
 		try {
-		  const meetData = await CommunityMeet.find({ mentorId }) 
+		  const today = new Date();
+		  today.setHours(0, 0, 0, 0);
+	  
+		  const meetData = await CommunityMeet.find({
+			mentorId,
+			date: { $gte: today } 
+		  })
 			.sort({ date: 1, startTime: 1 }) 
 			.lean()
 			.exec();
@@ -749,25 +759,30 @@ class MentorRepository {
 			  const mentorVerifyData = await MentorVerifyModel.findOne(
 				{ mentorId: meet.mentorId },
 				'name image'
-			  ).lean().exec();
+			  )
+				.lean()
+				.exec();
 	  
 			  return {
 				...meet,
 				mentorInfo: mentorVerifyData
 				  ? {
 					  name: mentorVerifyData.name,
-					  image: mentorVerifyData.image
+					  image: mentorVerifyData.image,
 					}
-				  : undefined
+				  : undefined,
 			  };
 			})
 		  );
+	  
 		  return enhancedMeetData;
 		} catch (error) {
 		  if (error instanceof Error) {
 			console.log(error.message);
 		  }
-		  throw new Error('An unexpected error occurred while fetching community meet data.');
+		  throw new Error(
+			'An unexpected error occurred while fetching community meet data.'
+		  );
 		}
 	  }
 

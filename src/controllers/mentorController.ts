@@ -5,7 +5,6 @@ import cloudinary from "../utils/cloudinary";
 import fs from 'fs'
 import { FileUrls } from "../interfaces/servicesInterfaces/ICloudinary";
 import { UploadResult } from "../interfaces/servicesInterfaces/ICloudinary";
-import MentorVerifyModel from "../models/mentorValidate";
 
 
 
@@ -351,7 +350,6 @@ class MentorController{
         try{
             const accessToken = req.headers['authorization'] as string
            const slotsData = await this.mentorService.getScheduledSlots(accessToken)
-           console.log(slotsData)
             res.status(200).json({message:"Slots sent successfully" , sloteData:slotsData})
         }catch(error){
             if (error instanceof Error) {

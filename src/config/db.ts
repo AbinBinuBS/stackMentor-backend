@@ -1,14 +1,14 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-const dbURI: string = 'mongodb+srv://abinbinu1827:wdFeE2ZAzGWDXH4k@cluster0.pjuxrgp.mongodb.net/stackMentor';
-
+dotenv.config();
+const dbURI: string = process.env.MONGODB_CONNECTION as string;
 const connectDB = async () => {
-    try {
-        await mongoose.connect('mongodb+srv://abinbinu1827:wdFeE2ZAzGWDXH4k@cluster0.pjuxrgp.mongodb.net/stackMentor');
-        console.log('Connected to MongoDB');
-    } catch (error) {
-        console.error('MongoDB connection error:', error);
-    }
-};  
+	try {
+		await mongoose.connect(dbURI);
+	} catch (error) {
+		console.error("MongoDB connection error:", error);
+	}
+};
 
 export default connectDB;

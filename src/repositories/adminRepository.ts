@@ -1,4 +1,3 @@
-import { Types } from "mongoose";
 import { IAdminMentorList, IDashboardData } from "../interfaces/servicesInterfaces/IAdmin";
 import Mentee, { IMentee } from "../models/menteeModel";
 import Mentor, { IMentor } from "../models/mentorModel";
@@ -58,7 +57,6 @@ class AdminRepository {
 			if (result) {
 				return newStatus;
 			} else {
-				console.error("Mentor not found.");
 				throw new Error("something unexpected happened please try again.");
 			}
 		} catch (error) {
@@ -162,7 +160,6 @@ class AdminRepository {
 			if (result) {
 				return newStatus;
 			} else {
-				console.error("User not found.");
 				throw new Error("something unexpected happened please try again.");
 			}
 		} catch (error) {

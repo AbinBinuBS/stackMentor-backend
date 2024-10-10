@@ -1,10 +1,7 @@
 
 
 import { Request, Response } from "express";
-import Chat from "../models/chatModel";
-import mongoose from "mongoose"; 
 import ChatService from "../services/chatService";
-import MentorVerifyModel from "../models/mentorValidate";
 
 class ChatController {
     constructor(private chatService : ChatService) {}

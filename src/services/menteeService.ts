@@ -67,7 +67,6 @@ class MenteeService {
                 isActive: menteeResponse.isActive,
                 isAdmin: menteeResponse.isAdmin,
               };
-              console.log(userPayload)
               let accessToken = generateAccessToken(userPayload)
               let refreshToken = generateRefreshToken(userPayload)
               return {accessToken,refreshToken}

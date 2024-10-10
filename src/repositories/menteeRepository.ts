@@ -220,7 +220,6 @@ class MenteeRepository {
 			const user = await Mentee.findOne({ email });
 
 			if (!user) {
-				console.error("User not found");
 				return false;
 			}
 			const hashedPassword = await HashedPassword.hashPassword(password);
@@ -459,7 +458,6 @@ async getBookedSlots(userId: string): Promise<BookedSlot[]> {
             },
         ]);
 
-        console.log(bookedSlots);
         return bookedSlots;
     } catch (error) {
         if (error instanceof Error) {
@@ -641,9 +639,7 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 			if (schedule.isBooked) {
 				throw new Error("Slot is already booked");
 			}
-			console.log(userId)
 			const walletBalance = await Mentee.findById(userId);
-			console.log("111111111111111111111111111111111",walletBalance)
 			if (!walletBalance || walletBalance.wallet === undefined) {
 				throw new Error("Wallet balance not found");
 			  }
@@ -786,8 +782,13 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 
 	  async getMeets(): Promise<EnhancedCommunityMeet[]> {
 		try {
-		  const meetData = await CommunityMeet.find()
-			.sort({ date: 1, startTime: 1 }) 
+		  const today = new Date();
+		  today.setHours(0, 0, 0, 0);
+	  
+		  const meetData = await CommunityMeet.find({
+			date: { $gte: today }, 
+		  })
+			.sort({ date: 1, startTime: 1 })
 			.lean()
 			.exec();
 	  
@@ -796,26 +797,30 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 			  const mentorVerifyData = await MentorVerifyModel.findOne(
 				{ mentorId: meet.mentorId },
 				'name image'
-			  ).lean().exec();
+			  )
+				.lean()
+				.exec();
 	  
 			  return {
 				...meet,
-				mentorInfo: mentorVerifyData 
+				mentorInfo: mentorVerifyData
 				  ? {
 					  name: mentorVerifyData.name,
-					  image: mentorVerifyData.image
+					  image: mentorVerifyData.image,
 					}
-				  : undefined
+				  : undefined,
 			  };
 			})
 		  );
-		  
+	  
 		  return enhancedMeetData;
 		} catch (error) {
 		  if (error instanceof Error) {
 			console.log(error.message);
 		  }
-		  throw new Error('An unexpected error occurred while fetching community meet data.');
+		  throw new Error(
+			'An unexpected error occurred while fetching community meet data.'
+		  );
 		}
 	  }
 	  

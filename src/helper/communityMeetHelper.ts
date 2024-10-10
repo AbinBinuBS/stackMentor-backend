@@ -1,17 +1,16 @@
 import CommunityMeet from "../models/communityMeetModel";
-import crypto from "crypto"; 
+import crypto from "crypto";
 
+const CommunityRoomId = async (): Promise<string> => {
+	let roomId: string;
+	let existingSlot: any;
 
-const CommunityRoomId = async(): Promise<string> =>{
-    let roomId: string;
-    let existingSlot: any;
-  
-    do {
-      roomId = crypto.randomBytes(12).toString("hex"); 
-      existingSlot = await CommunityMeet.findOne({ roomId });
-    } while (existingSlot); 
-  
-    return roomId;
-  }
+	do {
+		roomId = crypto.randomBytes(12).toString("hex");
+		existingSlot = await CommunityMeet.findOne({ roomId });
+	} while (existingSlot);
 
-  export default CommunityRoomId
+	return roomId;
+};
+
+export default CommunityRoomId;

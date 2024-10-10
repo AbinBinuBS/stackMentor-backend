@@ -2,7 +2,7 @@ import {
 	IOtpVerify,
 	TokenResponce,
 } from "../interfaces/servicesInterfaces/IMentee";
-import Mentor, { IMentor } from "../models/mentorModel";
+import { IMentor } from "../models/mentorModel";
 import MentorRepository from "../repositories/mentorRepository";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import { mentorPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
@@ -17,14 +17,12 @@ import {
 	MentorVerifyFiles,
 } from "../interfaces/servicesInterfaces/IMentor";
 import HashedPassword from "../utils/hashedPassword";
-import mongoose, { ObjectId } from "mongoose";
+import { ObjectId } from "mongoose";
 import dotenv from "dotenv";
-import MentorVerifyModel from "../models/mentorValidate";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { IScheduleTime } from "../models/mentorTimeSchedule";
 import { JWT_SECRET } from "../config/middilewareConfig";
 import { IQa } from "../models/qaModel";
-import { ICommunityMeet } from "../models/communityMeetModel";
 
 dotenv.config();
 
@@ -217,7 +215,6 @@ class MentorService {
 				accessToken,
 				process.env.ACCESS_TOKEN_PRIVATE_KEY as string
 			) as JwtPayload;
-			console.log(decoded);
 			const { id } = decoded;
 			const mentorData = await this.mentorRepository.isVerifiedMentor(id);
 			return mentorData;
@@ -262,7 +259,6 @@ class MentorService {
 				process.env.REFRESH_TOKEN_PRIVATE_KEY as string
 			) as JwtPayload;
 			const { id } = decoded;
-			console.log(id);
 			const isMentor = await this.mentorRepository.findMentorBtId(id);
 			if (!isMentor) {
 				throw new Error("Mentor not found");
@@ -401,7 +397,6 @@ class MentorService {
 	async changePassword(oldPassword:string,newPassword:string,mentorId:string): Promise<boolean> {
 		try {
 			const mentorData = await this.mentorRepository.findMentorBtId(mentorId)
-			console.log(mentorData,oldPassword)
 			if(mentorData?.password){
 				const isPasswordValid = await HashedPassword.comparePassword(
 					oldPassword,
