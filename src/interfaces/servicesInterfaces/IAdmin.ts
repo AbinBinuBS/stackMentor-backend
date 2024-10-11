@@ -1,3 +1,6 @@
+import { IMentor } from "../../models/mentorModel";
+import { IMentorVerify } from "../../models/mentorValidate";
+
 export interface TokenResponce {
 	accessToken: string;
 	refreshToken: string;
@@ -29,3 +32,9 @@ export interface IDashboardData {
 	mentorCount: number;
 	menteeCount: number;
 }
+
+export interface IMentorConbineData {
+    mentorData : IMentorVerify;
+    mentor: IMentor
+}
+

@@ -1,4 +1,4 @@
-import { IAdminMentorList, IDashboardData } from "../interfaces/servicesInterfaces/IAdmin";
+import { IAdminMentorList, IDashboardData, IMentorConbineData } from "../interfaces/servicesInterfaces/IAdmin";
 import Mentee, { IMentee } from "../models/menteeModel";
 import Mentor, { IMentor } from "../models/mentorModel";
 import ScheduleTime from "../models/mentorTimeSchedule";
@@ -69,13 +69,17 @@ class AdminRepository {
 		}
 	}
 
-	async getMentorDetails(id: string): Promise<IMentorVerify> {
+	async getMentorDetails(id: string): Promise<IMentorConbineData> {
 		try {
+			const mentor = await Mentor.findById(id)
 			const mentorData = await MentorVerifyModel.findOne({ mentorId: id });
 			if (!mentorData) {
 				throw new Error("something happend, please try again.");
 			}
-			return mentorData;
+			if(!mentor){
+				throw new Error("something happend, please try again.");
+			}
+			return {mentorData,mentor}
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);

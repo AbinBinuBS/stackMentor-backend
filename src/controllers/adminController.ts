@@ -65,19 +65,18 @@ class adminController {
 		}
 	}
 
-	async getMentorDetails(req: Request, res: Response): Promise<void> {
-		try {
-			const id = req.query.id as string;
-			const getMentorDta = await this.adminService.getMentorDetails(id);
-			res.status(200).json({ message: "Success", mentorData: getMentorDta });
-		} catch (error) {
-			if (error instanceof Error) {
-				console.error(`Unknown error in Admin: ${error.message}`);
-			}
-			res.status(500).json({ message: "Internal Server Error" });
-		}
-	}
-
+	async getMentorDetails(req:Request,res:Response) : Promise<void>{
+        try{
+            const id = req.query.id as string;
+            const {mentorData,mentor} = await this.adminService.getMentorDetails(id)
+            res.status(200).json({message:"Success",mentorData:mentorData,mentor:mentor})
+        }catch(error){
+            if(error instanceof Error){
+                console.error(`Unknown error in Admin: ${error.message}`);
+            }
+            res.status(500).json({ message: 'Internal Server Error' });
+        }
+    }
 	async updateMentorStatus(req: Request, res: Response): Promise<void> {
 		try {
 			const { id, status } = req.body;

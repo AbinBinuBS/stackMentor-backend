@@ -3,6 +3,7 @@ import {
 	IAdminMentorList,
 	IAdminUserList,
 	IDashboardData,
+	IMentorConbineData,
 	TokenResponce,
 } from "../interfaces/servicesInterfaces/IAdmin";
 import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
@@ -94,10 +95,10 @@ class AdminService {
 		}
 	}
 
-	async getMentorDetails(id:string): Promise<IMentorVerify>{
+	async getMentorDetails(id:string): Promise< IMentorConbineData>{
 		try{
-			const mentorData = await this.adminRepository.getMentorDetails(id)
-			return mentorData
+			const {mentorData,mentor} = await this.adminRepository.getMentorDetails(id)
+			return {mentorData,mentor}
 		}catch(error){
 			if (error instanceof Error) {
 				console.error(error.message);
