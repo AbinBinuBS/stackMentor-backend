@@ -1,51 +1,37 @@
-import { Schema, model, Document } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IScheduleTime extends Document {
-  date: Date;
+  scheduleType: 'normal' | 'weekly' | 'custom';
+  recurrenceRule: string;
+  date: Date | string;
+  startDate?: Date | string;
   startTime: string;
   endTime: string;
   price: number;
-  mentorId: Schema.Types.ObjectId; 
+  mentorId: mongoose.Types.ObjectId;
   isBooked: boolean;
-  bookingId?:unknown; 
+  bookingId?: mongoose.Types.ObjectId;
+  customDates?: string;
+  daysOfWeek?: number[];
+  endDate?: Date | string;
 }
 
-const scheduleTimeSchema: Schema<IScheduleTime> = new Schema(
-  {
-    date: {
-      type: Date,
-      required: true,
-    },
-    startTime: {
-      type: String,
-      required: true,
-    },
-    endTime: {
-      type: String,
-      required: true,
-    },
-    price: {
-      type: Number,
-      required: true,
-    },
-    mentorId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Mentor',
-      required: true,
-    },
-    isBooked: {
-      type: Boolean,
-      required: true,
-      default: false,
-    },
-    bookingId: {
-      type: Schema.Types.ObjectId,
-      ref: 'BookedSlot',
-    },
-  },
-  { timestamps: true }
-);
+const ScheduleTimeSchema: Schema = new Schema({
+    scheduleType: { type: String, enum: ['normal', 'weekly', 'custom'] },
+    recurrenceRule: { type: String },
+    date: { type: Date, required: true },
+    startDate: { type: Date },
+    startTime: { type: String, required: true },
+    endTime: { type: String, required: true },
+    price: { type: Number, required: true },
+    mentorId: { type: Schema.Types.ObjectId, ref: 'Mentor', required: true },
+    isBooked: { type: Boolean, default: false },
+    bookingId: { type: Schema.Types.ObjectId, ref: 'BookedSlot' },
+    customDates: { type: String },
+    daysOfWeek: { type: [Number] },
+    endDate: { type: Date }
+}, { timestamps: true });
 
-const ScheduleTime = model<IScheduleTime>('ScheduleTime', scheduleTimeSchema);
+const ScheduleTime = mongoose.model<IScheduleTime>('ScheduleTime', ScheduleTimeSchema);
 
 export default ScheduleTime;

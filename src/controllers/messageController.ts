@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import MessageService from "../services/messageService";
 import Message from "../models/messageModel";
-import Mentee from "../models/menteeModel";
 import MentorVerifyModel from "../models/mentorValidate";
 import Chat from "../models/chatModel";
+import NotificationModel from "../models/notificationModel";
 
 class MessageController {
 	constructor(private messageService: MessageService) {}
@@ -29,6 +29,7 @@ class MessageController {
                 res.status(400).json({ error: "Invalid data. Content and chatId are required." });
                 return;
             }
+            
 
             const populatedMessage = await this.messageService.sendMessage(content, chatId, mentee.id);
 
@@ -57,13 +58,31 @@ class MessageController {
             return;
         }
 
+        const chatData  = await Chat.findById({_id:chatId})
+        if (!chatData) {
+            console.log("Invalid data passed into request");
+            res.status(400).json({ error: "Invalid data. Content and chatId are required." });
+            return;
+        }
+        const menteeId = chatData.mentee
         const newMessage = new Message({
             sender: mentorVerification?._id,
+            reciver:menteeId,
+            reciverModel:'Mentee',
             senderModel: "MentorVarify", 
             content: content,
             chat: chatId,
         });
-
+        const newNotification = new NotificationModel({
+            senderName:mentorVerification?.name,
+            sender: mentorVerification?._id,
+            reciver:menteeId,
+            reciverModel:'Mentee',
+            senderModel: "MentorVarify", 
+            content: content,
+            chat: chatId,
+        });
+        await newNotification.save()
         let savedMessage = await newMessage.save();
 
         let populatedMessage = await Message.findById(savedMessage._id)

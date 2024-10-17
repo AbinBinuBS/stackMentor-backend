@@ -106,3 +106,8 @@ export interface EnhancedCommunityMeet
 		image: string;
 	};
 }
+
+
+export type WeekDay = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
+
+

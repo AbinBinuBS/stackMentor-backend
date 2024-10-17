@@ -1,4 +1,5 @@
 import mongoose, { ObjectId } from "mongoose";
+import { IRating } from "../../models/ratingModel";
 
 export interface TokenResponce {
 	accessToken: string;
@@ -47,11 +48,13 @@ export interface IMentorVerification {
 	name: string;
 	image: string;
 	yearsOfExperience: string | number;
+	_id: string
 }
 
 export interface ICombinedData {
 	slots: ISlot[];
 	mentorVerification: IMentorVerification;
+	ratings : IRating[]
 }
 
 export default interface ICheckIsBooked {
@@ -146,4 +149,12 @@ export interface IQaData {
 	isAnswered?: boolean;
 	menteeId?: { _id: string; name: string } | undefined;
 	mentorId?: { _id: string; name: string } | undefined;
+}
+
+export interface ITransaction {
+    date: Date;
+    description: string;
+    amount: number;
+    transactionType: 'credit' | 'debit';
+    balanceAfterTransaction: number; 
 }

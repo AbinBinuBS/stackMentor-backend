@@ -22,7 +22,7 @@ interface User {
 }
 
 const app = express();
-const PORT = 3000;
+const PORT = 3001;
 
 connectDB();
 
@@ -74,17 +74,17 @@ const io = new Server(httpServer, {
     origin: 'https://stack-mentor.vercel.app',
     credentials: true,
   },
-});
+}); 
 
 io.on('connection', (socket) => {
   console.log('A user connected to socket.io');
 
-
+ 
   socket.on('setup', (user: User) => {
     socket.join(user._id);
     console.log(`User connected with ID: ${user._id}`);
     socket.emit('connected');
-  });
+  }); 
 
 
   socket.on('join chat', (room: string) => {
@@ -103,7 +103,6 @@ io.on('connection', (socket) => {
 
   socket.on('new message', async (newMessageReceived: any) => {
     const chatId = newMessageReceived.chat._id;
-
     try {
         const chat = await Chat.findById(chatId);
 
@@ -120,6 +119,12 @@ io.on('connection', (socket) => {
             if (recipientId.toString() !== senderId) {
                 console.log(`Sending message to recipient:`, recipientId);
                 socket.in(recipientId.toString()).emit('message received', newMessageReceived);
+                socket.in(recipientId.toString()).emit('new notification', {
+                  message: 'You have a new message',
+                  chatId,
+                  senderId,
+                  messageText: newMessageReceived.content 
+                });
             }
         });
 

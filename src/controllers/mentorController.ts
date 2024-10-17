@@ -5,6 +5,7 @@ import cloudinary from "../utils/cloudinary";
 import fs from 'fs'
 import { FileUrls } from "../interfaces/servicesInterfaces/ICloudinary";
 import { UploadResult } from "../interfaces/servicesInterfaces/ICloudinary";
+import { IScheduleTime } from "../models/mentorTimeSchedule";
 
 
 
@@ -319,31 +320,46 @@ class MentorController{
     }
     
 
-    async scheduleTimeForMentor(req:Request,res:Response):Promise<void>{
-        try{
-            const accessToken = req.headers['authorization'] as string;
-            const scheduleData = req.body
-            const scheduleTime = await this.mentorService.scheduleTimeForMentor(scheduleData,accessToken)
-           if(scheduleTime){
-            res.status(200).json({message:"Time scheduled successfully."})
-           }else{
-            res.status(500).json({message:"unable to schedule time at this moment."})
-           }
-        }catch(error){
-            if (error instanceof Error) {
-                if(error.message == "The time slot overlaps with an existing schedule."){
-                    console.log(error.message)
-                    res.status(409).json({message:"The time slot can't  be booked because you already booked time on the provided time."})
-                }else{
-                    console.error('Error during time sheduling:', error.message);
-                    res.status(500).json({ message: error.message });
-                }
+    async scheduleTimeForMentor(req: Request, res: Response): Promise<void> {
+        try {
+            const mentorId = (req as any).mentor.id;
+            const scheduleData: IScheduleTime = req.body;
+            console.log("Scheduling data:", scheduleData);
+
+            let scheduleTimes: IScheduleTime[];
+
+            switch (scheduleData.scheduleType) {
+                case 'normal':
+                    scheduleTimes = await this.mentorService.scheduleNormalTime(scheduleData, mentorId);
+                    break;
+                case 'weekly':
+                    scheduleTimes = await this.mentorService.scheduleWeeklyTime(scheduleData, mentorId);
+                    break;
+                case 'custom':
+                    scheduleTimes = await this.mentorService.scheduleCustomTime(scheduleData, mentorId);
+                    break;
+                default:
+                    throw new Error('Invalid schedule type');
+            } 
+
+            if (scheduleTimes.length > 0) {
+                res.status(200).json({ message: "Time scheduled successfully.", scheduleTimes });
             } else {
-                console.error('Unknown error time sheduling:', error);
+                res.status(400).json({ message: "No time slots were scheduled. They might all overlap with existing schedules." });
+            }
+        } catch (error) {
+            if (error instanceof Error) {
+                console.log("333333333333333333333333333")
+                console.error('Error during time scheduling:', error.message);
+                res.status(400).json({ message: error.message });
+            } else {
+                console.log("444444444444444444444444444")
+                console.error('Unknown error during time scheduling:', error);
                 res.status(500).json({ message: 'Internal server error' });
             }
         }
     }
+    
     
 
     async getScheduledSlots(req:Request,res:Response):Promise<void>{
@@ -633,6 +649,55 @@ class MentorController{
             const meetId = req.params.meetId
             const about = req.body.data.reason
             const cancelMeet = await this.mentorService.cancelCommunityMeet(meetId,about)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+    async getMentorRating(req:Request,res:Response):Promise<void>{
+        try{
+            const mentorId = (req as any).mentor.id
+            const getRatings = await this.mentorService.getMentorRating(mentorId)
+            console.log("11111111111111",getRatings)
+            res.status(200).json({message:"Success",ratings:getRatings})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async getNotifications(req:Request,res:Response):Promise<void>{ 
+        try{
+            const mentorId = (req as any).mentor.id
+            const notifications = await this.mentorService.getNotifications(mentorId)
+            res.status(200).json({message:"Success",notifications:notifications})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async markReadChat(req:Request,res:Response):Promise<void>{ 
+        try{
+            const mentorId = (req as any).mentor.id
+            const chatId = req.params.id as string
+            const readChat = await this.mentorService.markReadChat(mentorId,chatId)
             res.status(200).json({message:"Success"})
         }catch(error){
             if (error instanceof Error) {

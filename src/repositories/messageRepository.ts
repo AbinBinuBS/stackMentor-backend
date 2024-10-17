@@ -1,6 +1,7 @@
 import Chat from "../models/chatModel";
 import MentorVerifyModel from "../models/mentorValidate";
 import Message, { IMessage } from "../models/messageModel";
+import NotificationModel from "../models/notificationModel";
 
 
 class MessageRepository {
@@ -16,8 +17,10 @@ class MessageRepository {
         }
     }
 
-    async saveMessage(messageData: any): Promise<any> {
+    async saveMessage(messageData: any,newNotification:any): Promise<any> {
         const newMessage = new Message(messageData);
+         const newNOtifications = new NotificationModel(newNotification)
+         await newNOtifications.save()
         return await newMessage.save();
     }
 

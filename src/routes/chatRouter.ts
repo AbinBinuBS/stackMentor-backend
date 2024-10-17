@@ -15,7 +15,7 @@ router.post("/mentee", menteeAuthMiddleware, async (req, res) =>
 	chatController.menteeConnectChat(req, res)
 );
 router.post("/mentor", mentorAuthMiddleware, async (req, res) =>
-	chatController.mentorConnectChat(req, res)
+	chatController.mentorConnectChat(req, res) 
 );
 
 export default router;

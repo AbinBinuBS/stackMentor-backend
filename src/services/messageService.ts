@@ -1,4 +1,5 @@
 import Chat from "../models/chatModel";
+import Mentee from "../models/menteeModel";
 import { IMessage } from "../models/messageModel";
 import MessageRepository from "../repositories/messageRepository";
 
@@ -15,14 +16,35 @@ class MessageService {
     }
 
     async sendMessage(content: string, chatId: string, senderId: string) {
+        const menteeData = await Mentee.findById({_id:senderId})
+        
+        const chatData  = await Chat.findById({_id:chatId})
+        if (!chatData) {
+            throw new Error("something unexpected happened")
+        }
+        if(!menteeData){
+            throw new Error("something unexpected happened")
+        }
+        const mentorId = chatData.mentor
         const newMessageData = {
             sender: senderId,
+            reciver:mentorId,
+            reciverModel:'MentorVarify',
             senderModel: "Mentee",
             content: content,
             chat: chatId,
         };
+        const newNotification ={
+            senderName:menteeData.name,
+            sender: senderId,
+            reciver:mentorId,
+            reciverModel:'MentorVarify',
+            senderModel: "Mentee", 
+            content: content,
+            chat: chatId,
+        }
 
-        const savedMessage = await this.messageRepository.saveMessage(newMessageData);
+        const savedMessage = await this.messageRepository.saveMessage(newMessageData,newNotification);
         const populatedMessage = await this.messageRepository.findMessageById(savedMessage._id);
         
         await Chat.findByIdAndUpdate(chatId, { latestMessage: savedMessage._id });

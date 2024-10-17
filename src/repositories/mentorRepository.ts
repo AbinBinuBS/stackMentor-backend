@@ -21,6 +21,9 @@ import BookedSlots from "../models/bookedSlots";
 import QA, { IQa } from "../models/qaModel";
 import CommunityMeet, { ICommunityMeet } from "../models/communityMeetModel";
 import CommunityRoomId from "../helper/communityMeetHelper";
+import { ITransaction } from "../interfaces/servicesInterfaces/IMentee";
+import Rating, { IRating } from "../models/ratingModel";
+import NotificationModel, { INotification } from "../models/notificationModel";
 
 
 
@@ -288,42 +291,31 @@ class MentorRepository {
 		}
 	}
 
-	async scheduleTimeForMentor(
-		scheduleData: IScheduleTime,
-		id: string
-	): Promise<IScheduleTime | undefined> {
-		try {
-			const existingScheduledTime = await ScheduleTime.findOne({
-				mentorId: id,
-				date: scheduleData.date,
+	async findOverlappingSchedule(
+		mentorId: string,
+		occurrenceDate: Date,
+		startTime: string,
+		endTime: string
+	): Promise<IScheduleTime | null> {
+		try{
+			const startDateTime = new Date(`${occurrenceDate.toISOString().split('T')[0]}T${startTime}`);
+			const endDateTime = new Date(`${occurrenceDate.toISOString().split('T')[0]}T${endTime}`);
+	
+			const existingSchedule = await ScheduleTime.findOne({
+				mentorId,
+				date: occurrenceDate,
 				$or: [
 					{
-						startTime: { $lte: scheduleData.endTime },
-						endTime: { $gte: scheduleData.startTime },
+						startTime: { $lt: endDateTime },
+						endTime: { $gt: startDateTime },
 					},
 				],
 			});
-
-			if (existingScheduledTime) {
-				throw new Error("The time slot overlaps with an existing schedule.");
-			}
-
-			const isTimeScheduled = new ScheduleTime({
-				date: scheduleData.date,
-				startTime: scheduleData.startTime,
-				endTime: scheduleData.endTime,
-				price: scheduleData.price,
-				mentorId: id,
-				isBooked:false
-			});
-
-			await isTimeScheduled.save();
-
-			return isTimeScheduled;
-		} catch (error) {
+	
+			return existingSchedule; 
+		}catch(error){
 			if (error instanceof Error) {
 				console.log(error.message);
-				throw new Error(error.message);
 			}
 			throw new Error("An unexpected error occurred.");
 		}
@@ -561,15 +553,23 @@ class MentorRepository {
 				if (!mentee) {
 					throw new Error('Mentee not found');
 				}
-	
 				mentee.wallet = (mentee.wallet || 0) + scheduleTime.price;
+				if (!mentee.walletHistory) {
+					mentee.walletHistory = [];
+				}
+				const transaction: ITransaction = {
+					date: new Date(), 
+					description: `Slot cancellation refund by mentor for ${scheduleTime.price}`, 
+					amount: scheduleTime.price, 
+					transactionType: 'credit',
+					balanceAfterTransaction: mentee.wallet, 
+				};
+				mentee.walletHistory.push(transaction);
 				await mentee.save({ session });
 			}
-	
-			bookedSlot.status = timeSheduleStatus.CANCELLED; 
+			bookedSlot.status = timeSheduleStatus.CANCELLED;
 			await bookedSlot.save({ session });
-	
-			
+			scheduleTime.isBooked = false;
 			await scheduleTime.save({ session });
 	
 			await session.commitTransaction();
@@ -580,6 +580,7 @@ class MentorRepository {
 			session.endSession();
 		}
 	}
+	
 	  
 	async allowConnection(bookedId:string): Promise<void> {
 		try {
@@ -801,9 +802,71 @@ class MentorRepository {
 		  throw new Error('An unexpected error occurred.');
 		}
 	  }
+
+	  async getMentorRating(mentorId:string): Promise<IRating[] | null> {
+		try {
+			const mentor = await MentorVerifyModel.findOne({mentorId:mentorId})
+			if(!mentor){
+				throw new Error("mentor is not valid")
+			}
+			const mentorverifyId = mentor?._id
+			const reviewData = await Rating.find({ mentor: mentorverifyId })
+			  .populate('mentee', 'name')
+			  .exec();
+			  return reviewData
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+
+	  async getNotifications(mentorId: string): Promise<INotification[]> {
+		try {
+			const mentorData = await MentorVerifyModel.findOne({mentorId:mentorId})
+			if(!mentorData){
+				throw new Error("mentor not found")
+			}
+			const notifications = await NotificationModel.find({ reciver: mentorData._id, read: false })
+  			.sort({ createdAt: -1 });
+			return notifications
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error("Error:", error.message);
+			} else {
+				console.log("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
 	  
 	   
-	  
+	async markReadChat(mentorId: string,chatId:string): Promise<void> {
+		try {
+			const mentorData = await MentorVerifyModel.findOne({mentorId:mentorId})
+			if(!mentorData){
+				throw new Error("mentor not found")
+			}
+			await NotificationModel.updateMany(
+				{
+				  chat: chatId,
+				  reciver: mentorData._id,
+				  read: false,
+				},
+				{
+				  $set: { read: true },
+				}
+			  );
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error("Error:", error.message);
+			} else {
+				console.log("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
 
 	  
 }

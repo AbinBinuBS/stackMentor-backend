@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { ITransaction } from '../interfaces/servicesInterfaces/IMentee';
 
 export interface IMentee extends Document {
     name: string;
@@ -10,7 +11,33 @@ export interface IMentee extends Document {
     wallet?: number; 
     createdAt?: Date;
     updatedAt?: Date;
+    walletHistory?: ITransaction[];
 }
+
+const transactionSchema: Schema = new Schema({
+    date: {
+        type: Date,
+        required: true,
+        default: Date.now 
+    },
+    description: {
+        type: String,
+        required: true,
+    },
+    amount: {
+        type: Number,
+        required: true,
+    },
+    transactionType: {
+        type: String,
+        enum: ['credit', 'debit'], 
+        required: true,
+    },
+    balanceAfterTransaction: {
+        type: Number,
+        required: true,
+    }
+}, { _id: false });
 
 const menteeSchema: Schema = new Schema(
     {
@@ -43,6 +70,10 @@ const menteeSchema: Schema = new Schema(
             type: Number,
             default: 0, 
         },
+        walletHistory: {
+            type: [transactionSchema], 
+            default: [] 
+        }
     },
     {
         timestamps: true,

@@ -104,5 +104,16 @@ router.put(
 	mentorAuthMiddleware,
 	async (req, res) => mentorController.cancelCommunityMeet(req, res)
 );
+router.get("/getRatings", mentorAuthMiddleware, async (req, res) =>
+	mentorController.getMentorRating(req, res)
+);
+
+router.get("/getNotifications", mentorAuthMiddleware, async (req, res) =>
+	mentorController.getNotifications(req, res)
+);
+
+router.put("/readChat/:id", mentorAuthMiddleware, async (req, res) =>
+	mentorController.markReadChat(req, res)
+);
 
 export default router;

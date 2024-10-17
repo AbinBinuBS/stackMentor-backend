@@ -76,11 +76,45 @@ router.get("/getMeets", menteeAuthMiddleware, async (req, res) =>
 router.post("/checkAvailable", async (req, res) =>
 	menteeController.checkIsBooked(req, res)
 );
+
+router.post("/getMenteeDetails",menteeAuthMiddleware, async (req, res) =>
+	menteeController.getMenteeDetails(req, res)
+);
+
+router.put("/updateProfile",menteeAuthMiddleware, async (req, res) =>
+	menteeController.editProfile(req, res)
+);
+
+router.put("/changePassword",menteeAuthMiddleware, async (req, res) =>
+	menteeController.changePassword(req, res)
+);
+
 router.post("/menteePayment", async (req, res) =>
 	menteeController.paymentMethod(req, res)
 );
+
+router.post("/proceedPayment", async (req, res) =>
+	menteeController.proceedPayment(req, res)
+);
+
 router.post("/payUsingWallet", menteeAuthMiddleware, async (req, res) =>
 	menteeController.walletPayment(req, res)
 );
+
+router.post("/review", menteeAuthMiddleware, async (req, res) =>
+	menteeController.addReview(req, res)
+);
+
+
+
+router.get("/getNotifications", menteeAuthMiddleware, async (req, res) =>
+	menteeController.getNotifications(req, res)
+);
+
+
+router.put("/readChat/:id", menteeAuthMiddleware, async (req, res) =>
+	menteeController.markReadChat(req, res)
+);
+
 
 export default router;

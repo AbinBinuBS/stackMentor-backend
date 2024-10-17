@@ -21,7 +21,7 @@ export const sendVerifyMail = async (
 			pass: process.env.USERPASSWORD as string,
 		},
 	});
-
+	console.log(otp)
 	const mailDetails = {
 		from: process.env.USEREMAIL as string,
 		to: email,

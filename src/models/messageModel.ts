@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IMessage extends Document {
-  sender: mongoose.Schema.Types.ObjectId; 
+  sender: mongoose.Schema.Types.ObjectId;
+  reciver: mongoose.Schema.Types.ObjectId;
   content: string; 
   chat: mongoose.Schema.Types.ObjectId; 
   readBy: mongoose.Schema.Types.ObjectId[]; 
@@ -17,6 +18,16 @@ const messageSchema: Schema = new Schema(
       required: true,
     },
     senderModel: {
+      type: String,
+      required: true,
+      enum: ["MentorVarify", "Mentee"],
+    },
+    reciver: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: "reciverModel", 
+      required: true,
+    },
+    reciverModel: {
       type: String,
       required: true,
       enum: ["MentorVarify", "Mentee"],

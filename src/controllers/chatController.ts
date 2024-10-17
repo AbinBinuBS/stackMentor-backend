@@ -9,7 +9,8 @@ class ChatController {
     async menteeConnectChat(req: Request, res: Response): Promise<void> {
         try {
             const mentee = (req as any).mentee; 
-            const mentorId = req.body.mentorData?._id; 
+
+            const mentorId = req.body.id
             const Chat = await this.chatService.menteeConnectChat(mentee,mentorId)
             res.status(200).json({message:"Success",chat:Chat});
         } catch (error) {
@@ -21,7 +22,7 @@ class ChatController {
     async mentorConnectChat(req: Request, res: Response): Promise<void> {
         try {
             const mentorId = (req as any).mentor.id
-            const mentee = req.body.bookingData.userId            
+            const mentee = req.body.id          
             const Chat = await this.chatService.mentorConnectChat(mentee,mentorId)
             res.status(200).json({message:"Success",chat:Chat})
         } catch (error) {

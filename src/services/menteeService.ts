@@ -17,6 +17,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "../config/middilewareConfig";
 import { IQa } from "../models/qaModel";
 import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
+import { INotification } from "../models/notificationModel";
 
 class MenteeService {
   constructor(private menteeRepository: MenteeRepository) {}
@@ -265,7 +266,7 @@ class MenteeService {
   }
 
 
-  async getMentors(level: string): Promise<IMentorShowcase[]> {
+  async getMentors(level: string , stack:string): Promise<IMentorShowcase[]> {
     try {
       let start: number;
       let end: number;
@@ -279,7 +280,7 @@ class MenteeService {
         start = 10;
         end = Infinity; 
       }
-      const mentorsData = await this.menteeRepository.getMentors(start , end);
+      const mentorsData = await this.menteeRepository.getMentors(start , end,stack);
       return mentorsData
   
     } catch (error) {
@@ -383,14 +384,71 @@ class MenteeService {
     }
   }
 
-  async paymentMethod(sessionId:string,accessToken:string): Promise< boolean>{
+
+  async getMenteeDetails(menteeId:string): Promise<IMentee> {
+		try {
+			const mentorData = await this.menteeRepository.getMenteeDetails(menteeId)
+			return mentorData as IMentee
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+
+  async editProfile(name: string, menteeId: string): Promise<void> {
+		try {
+			const menteeDataUpdate = await this.menteeRepository.editProfile(name,menteeId);
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+  async changePassword(oldPassword:string,newPassword:string,menteeId:string): Promise<boolean> {
+		try {
+			const menteeData = await this.menteeRepository.findMenteeById(menteeId)
+			if(menteeData?.password){
+				const isPasswordValid = await HashedPassword.comparePassword(
+					oldPassword,
+					menteeData.password
+				)
+				if(isPasswordValid){
+					const changePassword = await this.menteeRepository.changePassword(menteeId,newPassword)
+					if(changePassword){
+						return changePassword
+					}else{
+						throw new Error("an unexpected error happened please try again")
+					}
+				}else{
+					throw new Error("password don't match")
+				}
+			}else{
+				throw new Error("an unexpected error happened please try again")
+			}
+			
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+				throw new Error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+  async proceedPayment(sessionId:string,accessToken:string): Promise< boolean>{
     try{
       if (accessToken.startsWith("Bearer ")) {
 				accessToken = accessToken.split(" ")[1];
 			}
 			const decoded = jwt .verify(accessToken,JWT_SECRET as string) as JwtPayload;
 			const { id } = decoded;
-      const bookSlot = await this.menteeRepository.paymentMethod(sessionId,id)
+      const bookSlot = await this.menteeRepository.proceedPayment(sessionId,id)
       return true
     }catch(error){
       if (error instanceof Error) {
@@ -490,7 +548,39 @@ class MenteeService {
 		}
 	}
 
-  
+  async addReview(menteeId:string,rating:number,comment:string,mentorId:string): Promise<void> {
+		try {
+			const meetData = await this.menteeRepository.addReview(menteeId,rating,comment,mentorId);
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+  async getNotifications(menteeId:string): Promise<INotification[]> {
+		try {
+			const notifications = await this.menteeRepository.getNotifications(menteeId);
+      return notifications
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+  async markReadChat(menteeId:string,chatId:string): Promise<void> {
+		try {
+			 await this.menteeRepository.markReadChat(menteeId,chatId);
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
   
 }
 

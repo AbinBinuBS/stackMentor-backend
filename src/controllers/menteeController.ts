@@ -195,7 +195,8 @@ class MenteeController {
         try{
             
             const level = req.query.level as string
-            const mentorsData = await this.menteeService.getMentors(level)
+            const stack = req.query.stack as string
+            const mentorsData = await this.menteeService.getMentors(level,stack)
             res.status(200).json({mentorData:mentorsData})
         }catch(error){
             console.log(error);
@@ -207,7 +208,7 @@ class MenteeController {
         try{
             const id = req.params.id as string
             const slotDatas = await this.menteeService.getMentorSlots(id)
-            res.status(200).json({message:"Success" ,slotsData:slotDatas.slots , mentorData:slotDatas.mentorVerification})
+            res.status(200).json({message:"Success" ,slotsData:slotDatas.slots , mentorData:slotDatas.mentorVerification,ratings:slotDatas.ratings})
         }catch(error){
             console.log(error);
             res.status(500).json({ message: "An error occurred while processing your request." });
@@ -380,11 +381,67 @@ class MenteeController {
     }
 
 
+    async getMenteeDetails(req:Request,res:Response):Promise<void>{
+        try{
+            const menteeId =  (req as any).mentee.id
+            const menteeData = await this.menteeService.getMenteeDetails(menteeId)
+            res.status(200).json(menteeData)
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  mentee:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async editProfile(req: Request, res: Response): Promise<void> {
+        try {
+            const { name } = req.body;
+            const menteeId = (req as any).mentee.id;
+            const menteeResponse = await this.menteeService.editProfile(name, menteeId);
+            res.status(200).json({message:"Success"});
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error(error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during mentor profile update:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async changePassword(req:Request,res:Response): Promise<void>{
+        try{
+            const {oldPassword,newPassword} = req.body
+            const menteeId = (req as any).mentee.id
+            const updatePassword = await this.menteeService.changePassword(oldPassword,newPassword,menteeId)
+            if(updatePassword){
+                res.status(200).json({message:"Success"})
+            }else{
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        } catch (error) {
+            if (error instanceof Error) {
+                if(error.message == "password don't match"){
+                    res.status(400).json({message:"old password don't match"})
+                }else{
+                    res.status(500).json({ message: error.message });
+                }
+            } else {
+                console.error('Unknown error during mentor profile update:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+
     async  paymentMethod(req: Request, res: Response): Promise<void> {
         try {
-            const accessToken = req.headers['authorization'] as string;
-            const { sessionId,amount } = req.body;
-            const bookSlot = await this.menteeService.paymentMethod(sessionId,accessToken)
+            const { amount } = req.body;
             const amountInPaise = amount * 100; 
             if (amountInPaise < 50) {
                 res.status(400).json({ message: "Amount must be at least 50 paise (0.50 INR)." });
@@ -401,6 +458,23 @@ class MenteeController {
         } catch (error) {
             console.log(error);
             res.status(500).json({ message: "An error occurred while processing your request." });
+        }
+    }
+
+    async proceedPayment(req:Request,res:Response):Promise<void>{ 
+        try{
+            const accessToken = req.headers['authorization'] as string;
+            const { sessionId } = req.body
+            const bookSlot = await this.menteeService.proceedPayment(sessionId,accessToken)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
         }
     }
 
@@ -430,10 +504,59 @@ class MenteeController {
             }
         }
     }
+
+    async addReview(req:Request,res:Response):Promise<void>{ 
+        try{
+            const menteeId = (req as any).mentee.id
+            const formData = req.body.values
+            const mentorId = req.body.slotId
+            const review = await this.menteeService.addReview(menteeId,formData.rating,formData.comment,mentorId)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
+    async getNotifications(req:Request,res:Response):Promise<void>{ 
+        try{
+            const menteeId = (req as any).mentee.id
+            const notifications = await this.menteeService.getNotifications(menteeId)
+            res.status(200).json({message:"Success",notifications:notifications})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
     
+    async markReadChat(req:Request,res:Response):Promise<void>{ 
+        try{
+            const menteeId = (req as any).mentee.id
+            const chatId = req.params.id as string
+            const readChat = await this.menteeService.markReadChat(menteeId,chatId)
+            res.status(200).json({message:"Success"})
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during  :', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
 
     
-
     
       
 }

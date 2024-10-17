@@ -15,14 +15,18 @@ import {
 	MentorVerification,
 	MentorVerifyData,
 	MentorVerifyFiles,
+	WeekDay,
 } from "../interfaces/servicesInterfaces/IMentor";
 import HashedPassword from "../utils/hashedPassword";
-import { ObjectId } from "mongoose";
+import { ObjectId, Types } from "mongoose";
 import dotenv from "dotenv";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { IScheduleTime } from "../models/mentorTimeSchedule";
+import ScheduleTime, { IScheduleTime } from "../models/mentorTimeSchedule";
 import { JWT_SECRET } from "../config/middilewareConfig";
 import { IQa } from "../models/qaModel";
+import { RRule, RRuleSet, rrulestr, Weekday } from "rrule";
+import { IRating } from "../models/ratingModel";
+import { INotification } from "../models/notificationModel";
 
 dotenv.config();
 
@@ -280,33 +284,168 @@ class MentorService {
 		}
 	}
 
-	async scheduleTimeForMentor(
-		scheduleData: IScheduleTime,
-		accessToken: string
-	): Promise<IScheduleTime | undefined> {
-		try {
-			if (accessToken.startsWith("Bearer ")) {
-				accessToken = accessToken.split(" ")[1];
-			}
-			const decoded = jwt.verify(
-				accessToken,
-				JWT_SECRET as string
-			) as JwtPayload;
-			const { id } = decoded;
-			const scheduleTime = await this.mentorRepository.scheduleTimeForMentor(
-				scheduleData,
-				id
-			);
-			return scheduleTime;
-		} catch (error) {
-			if (error instanceof Error) {
-				console.error("Error schedule time :", error.message);
-				throw new Error(error.message); 
-			} else {
-				console.error("Unknown error during scheduling time:", error);
-			}
-		}
-	}
+	async scheduleNormalTime(scheduleData: IScheduleTime, mentorId: string): Promise<IScheduleTime[]> {
+        const { startTime, endTime, price, date } = scheduleData;
+        
+        if (!date) {
+            throw new Error("Date is required for normal scheduling.");
+        }
+
+        // Convert date string to Date object if it's a string
+        const scheduleDate = typeof date === 'string' ? new Date(date) : date;
+
+        if (!(scheduleDate instanceof Date) || isNaN(scheduleDate.getTime())) {
+            throw new Error("Invalid date provided for scheduling.");
+        }
+
+        const rrule = new RRule({
+            freq: RRule.DAILY,
+            count: 1,
+            dtstart: new Date(`${scheduleDate.toISOString().split('T')[0]}T${startTime}`),
+        });
+
+        const existingSchedule = await this.findOverlappingSchedule(mentorId, scheduleDate, startTime, endTime);
+        if (existingSchedule) {
+            throw new Error("The time slot overlaps with an existing schedule.");
+        }
+
+        const newScheduleData = new ScheduleTime({
+            scheduleType: 'normal',
+            recurrenceRule: rrule.toString(),
+            startTime,
+            endTime,
+            price,
+            mentorId: new Types.ObjectId(mentorId),
+            isBooked: false,
+            date: scheduleDate,
+        });
+
+        const savedSchedule = await newScheduleData.save();
+        return [savedSchedule];
+    }
+
+    async scheduleWeeklyTime(scheduleData: IScheduleTime, mentorId: string): Promise<IScheduleTime[]> {
+        const { startDate, endDate, startTime, endTime, price, daysOfWeek } = scheduleData;
+
+        if (!startDate || !endDate || !daysOfWeek) {
+            throw new Error("Start date, end date, and days of week are required for weekly scheduling.");
+        }
+
+        const weekDays: Weekday[] = [RRule.SU, RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA];
+        const rrule = new RRule({
+            freq: RRule.WEEKLY,
+            dtstart: new Date(startDate),
+            until: new Date(endDate),
+            byweekday: daysOfWeek.map(day => weekDays[day])
+        });
+
+        const scheduledDates: IScheduleTime[] = [];
+ 
+        for (const date of rrule.all()) {
+            const existingSchedule = await this.findOverlappingSchedule(mentorId, date, startTime, endTime);
+            if (existingSchedule) {
+                console.log(`Skipping overlapping schedule on ${date}`);
+                continue;
+            }
+
+            const newScheduleData = new ScheduleTime({
+                scheduleType: 'weekly',
+                recurrenceRule: rrule.toString(),
+                startTime,
+                endTime,
+                price,
+                mentorId: new Types.ObjectId(mentorId),
+                isBooked: false,
+                daysOfWeek,
+                date,
+                startDate,
+                endDate
+            });
+
+            const savedSchedule = await newScheduleData.save();
+            scheduledDates.push(savedSchedule);
+        }
+
+        return scheduledDates;
+    }
+
+    async scheduleCustomTime(scheduleData: IScheduleTime, mentorId: string): Promise<IScheduleTime[]> {
+        const { customDates, startTime, endTime, price } = scheduleData;
+
+        if (!customDates) {
+            throw new Error("Custom dates are required for custom scheduling.");
+        }
+
+        let dates: Date[];
+        try {
+            dates = JSON.parse(customDates).map((dateStr: string) => new Date(dateStr));
+        } catch (error) {
+            throw new Error("Invalid custom dates format. Expected a JSON string of dates.");
+        }
+
+        if (dates.length === 0) {
+            throw new Error("No valid dates provided.");
+        }
+
+        const scheduledDates: IScheduleTime[] = [];
+
+        for (const date of dates) {
+            const existingSchedule = await this.findOverlappingSchedule(mentorId, date, startTime, endTime);
+            if (existingSchedule) {
+                console.log(`Skipping overlapping schedule on ${date}`);
+                continue;
+            }
+
+            const newScheduleData = new ScheduleTime({
+                scheduleType: 'custom',
+                recurrenceRule: new RRule({
+                    freq: RRule.DAILY,
+                    count: 1,
+                    dtstart: date
+                }).toString(),
+                startTime,
+                endTime,
+                price,
+                mentorId: new Types.ObjectId(mentorId),
+                isBooked: false,
+                customDates,
+                date
+            });
+
+            const savedSchedule = await newScheduleData.save();
+            scheduledDates.push(savedSchedule);
+        }
+
+        return scheduledDates;
+    }
+
+	private async findOverlappingSchedule(
+        mentorId: string,
+        date: Date,
+        startTime: string,
+        endTime: string
+    ): Promise<IScheduleTime | null> {
+        const startDateTime = new Date(`${date.toISOString().split('T')[0]}T${startTime}`);
+        const endDateTime = new Date(`${date.toISOString().split('T')[0]}T${endTime}`);
+
+        return ScheduleTime.findOne({
+            mentorId,
+            date: {
+                $gte: new Date(date.toISOString().split('T')[0]),
+                $lt: new Date(new Date(date).setDate(date.getDate() + 1))
+            },
+            $or: [
+                {
+                    startTime: { $lt: endTime },
+                    endTime: { $gt: startTime }
+                }
+            ]
+        });
+    }
+	
+	
+	
+	
 
 	async getScheduledSlots(accessToken:string): Promise< ISlotsList[] | undefined> {
 		try {
@@ -546,8 +685,41 @@ class MentorService {
 			throw new Error("An unexpected error occurred.");
 		}
 	}
+
+	async getMentorRating(mentorId:string): Promise<IRating[] | null> {
+		try {
+			const getRatings = await this.mentorRepository.getMentorRating(mentorId);
+			return getRatings
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async getNotifications(mentorId:string): Promise<INotification[]> {
+		try {
+			const notifications = await this.mentorRepository.getNotifications(mentorId);
+      		return notifications
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
 	
-	
+	async markReadChat(mentorId:string,chatId:string): Promise<void> {
+		try {
+			 await this.mentorRepository.markReadChat(mentorId,chatId);
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
 	
 	
 }

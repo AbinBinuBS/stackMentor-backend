@@ -6,9 +6,9 @@ import ICheckIsBooked, {
 	IMentorVerification,
 	IQaData,
 	ISlot,
+	ITransaction,
 } from "../interfaces/servicesInterfaces/IMentee";
 import Mentee from "../models/menteeModel";
-import Mentor from "../models/mentorModel";
 import ScheduleTime, { IScheduleTime } from "../models/mentorTimeSchedule";
 import MentorVerifyModel from "../models/mentorValidate";
 import TempModel, { IMentee } from "../models/tempRegister";
@@ -20,6 +20,8 @@ import generateRoomId from "../helper/randomIdHelprt";
 import QA, { IQa } from "../models/qaModel";
 import CommunityMeet from "../models/communityMeetModel";
 import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
+import Rating, { IRating } from "../models/ratingModel";
+import NotificationModel, { INotification } from "../models/notificationModel";
 
 class MenteeRepository {
 	async menteeRegister(
@@ -240,12 +242,13 @@ class MenteeRepository {
 
 	async getMentors(
 		start: number,
-		end: number
+		end: number,
+		stack:string
 	): Promise<Array<IMentorShowcase>> {
 		try {
 			const mentorsData = await MentorVerifyModel.aggregate([
 				{
-					$match: { isVerified: true },
+					$match: { isVerified: true ,stack:stack},
 				},
 				{
 					$match: {
@@ -285,7 +288,6 @@ class MenteeRepository {
 		  const objectId = new mongoose.Types.ObjectId(id);
 		  const tomorrow = new Date();
 		  tomorrow.setDate(tomorrow.getDate());
-	  
 		  const mentor = await MentorVerifyModel.find({ _id: id });
 		  if (!mentor) {
 			throw new Error("Internal server Error: Mentor not found");
@@ -297,6 +299,7 @@ class MenteeRepository {
 			  $match: {
 				mentorId: objectId,
 				date: { $gte: tomorrow }, 
+				isBooked:false
 			  },
 			},
 			{
@@ -343,6 +346,7 @@ class MenteeRepository {
 				endTime: 1,
 				price: 1,
 				isBooked: 1,
+				"mentorVerification._id": { $ifNull: ["$mentorVerification._id", "N/A"] },
 				"mentorVerification.name": { $ifNull: ["$mentorVerification.name", "N/A"] },
 				"mentorVerification.image": { $ifNull: ["$mentorVerification.image", "N/A"] },
 				"mentorVerification.yearsOfExperience": {
@@ -358,10 +362,14 @@ class MenteeRepository {
 			slotsData.length > 0
 			  ? slotsData[0].mentorVerification
 			  : { name: "N/A", image: "N/A", yearsOfExperience: "N/A" };
-	  
+			  const mentorId = mentorVerification._id
+			  const reviewData = await Rating.find({ mentor: mentorId })
+			  .populate('mentee', 'name')
+			  .exec();
 		  return {
 			slots: slotsData as ISlot[],
 			mentorVerification,
+			ratings: reviewData as IRating[]
 		  };
 		} catch (error) {
 		  if (error instanceof Error) {
@@ -589,7 +597,86 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 		}
 	}
 
-	async paymentMethod(
+
+	async getMenteeDetails(menteeId: string): Promise< IMentee> {
+		try {
+			const menteeData = await Mentee.findById({_id:menteeId})
+			if(menteeData){
+				return menteeData as IMentee
+			}
+			throw new Error("An unexpected error occurred.")
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async editProfile(
+		name: string,
+		menteeId: string,
+	  ): Promise<void> {
+		try {
+		  if (!Types.ObjectId.isValid(menteeId)) {
+			throw new Error("Invalid menteeId provided.");
+		  }
+	  
+		  const updatedMentor = await Mentee.findByIdAndUpdate(
+			menteeId,
+			{ name },
+			{ new: true } 
+		  );
+	  
+		  if (!updatedMentor) {
+			throw new Error("mentee not found.");
+		  }
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.error(error.message);
+		  }
+		  throw new Error("An unexpected error occurred.");
+		}
+	  }
+
+	  async findMenteeById(id: string): Promise<IMentee | undefined> {
+		try {
+			const menteeData = await Mentee.findById({ _id: id });
+			if (!menteeData) {
+				throw new Error("mentor do not exist");
+			}
+			return menteeData;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+
+	  async changePassword(menteeId: string, newPassword: string): Promise<boolean> {
+		try {
+		  const hashedPassword = await HashedPassword.hashPassword(newPassword);
+	  
+		  const updatePassword = await Mentee.findByIdAndUpdate(
+			menteeId, 
+			{ password: hashedPassword }, 
+			{ new: true } 
+		  );
+		  if (!updatePassword) {
+			throw new Error('mentee not found');
+		  }
+		  return true
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
+
+	async proceedPayment(
 		scheduledId: string,
 		userId: string
 	  ): Promise<IScheduleTime | null> {
@@ -629,41 +716,49 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 		}
 	  }
 
-	  async walletPayment(userId: string,slotId:string): Promise<IScheduleTime | null> {
+	  async walletPayment(userId: string, slotId: string): Promise<IScheduleTime | null> {
 		try {
 			const schedule = await ScheduleTime.findById(slotId);
 			if (!schedule) {
 				throw new Error("Schedule not found");
 			}
-		
 			if (schedule.isBooked) {
 				throw new Error("Slot is already booked");
 			}
 			const walletBalance = await Mentee.findById(userId);
 			if (!walletBalance || walletBalance.wallet === undefined) {
 				throw new Error("Wallet balance not found");
-			  }
-			if(walletBalance.wallet < schedule.price){
-				throw new Error("insufficient balance")
 			}
-			const roomId = await generateRoomId()
-		  	const bookedSlot = new BookedSlots({
-			slotId: schedule._id, 
-			userId: userId,
-			status: timeSheduleStatus.CONFIRMED,
-			roomId,
-			isAttended: false,
-			isExpired: false,
-		  });
-	  
-		  const savedBookedSlot = await bookedSlot.save();
-		  schedule.isBooked = true;
-		  schedule.bookingId = savedBookedSlot._id as Types.ObjectId 
-		  walletBalance.wallet = walletBalance.wallet - schedule.price;
-        	await walletBalance.save(); 
-		  const updatedSchedule = await schedule.save();
-		  walletBalance.wallet - schedule.price
-		  return updatedSchedule;
+			if (walletBalance.wallet < schedule.price) {
+				throw new Error("Insufficient balance");
+			}
+			const roomId = await generateRoomId();
+			const bookedSlot = new BookedSlots({
+				slotId: schedule._id,
+				userId: userId,
+				status: timeSheduleStatus.CONFIRMED,
+				roomId,
+				isAttended: false,
+				isExpired: false,
+			});
+			const savedBookedSlot = await bookedSlot.save();
+			schedule.isBooked = true;
+			schedule.bookingId = savedBookedSlot._id as Types.ObjectId;
+			walletBalance.wallet -= schedule.price;
+			if (!walletBalance.walletHistory) {
+				walletBalance.walletHistory = []; 
+			}
+			const transaction: ITransaction = {
+				date: new Date(),
+				description: `Booked slot for ${schedule.price}`, 
+				amount: -schedule.price, 
+				transactionType: 'debit',
+				balanceAfterTransaction: walletBalance.wallet, 
+			};
+			walletBalance.walletHistory.push(transaction);
+			await walletBalance.save();
+			const updatedSchedule = await schedule.save();
+			return updatedSchedule;
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error("Error:", error.message);
@@ -673,11 +768,19 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 			throw error;
 		}
 	}
+	
+	
 
-	  async getWalletData(menteeId: string): Promise<IMentee | undefined> {
+	async getWalletData(menteeId: string): Promise<IMentee | undefined> {
 		try {
-			const walletData = await Mentee.findById(menteeId).select('_id name wallet').exec();
+			const walletData = await Mentee.findById(menteeId)
+				.select('_id name wallet walletHistory') 
+				.exec();
+	
 			if (walletData) {
+				if (walletData.walletHistory) {
+					walletData.walletHistory.reverse();
+				}
 				return walletData; 
 			} else {
 				throw new Error("Mentee not found");
@@ -691,62 +794,80 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 			throw error;
 		}
 	}
+	
 
 	async cancelSlot(slotId: string): Promise<void> {
 		const session = await mongoose.startSession();
 		session.startTransaction();
-	  
+	
 		try {
-		  const bookedSlot = await BookedSlots.findById(slotId).session(session);
-		  if (!bookedSlot) {
-			throw new Error('Booked slot not found');
-		  }
-	  
-		  const scheduleTime = await ScheduleTime.findById(bookedSlot.slotId).session(session);
-		  if (!scheduleTime) {
-			throw new Error('Related schedule not found');
-		  }
-	  
-		  if (bookedSlot.userId) {
-			const mentee = await Mentee.findById(bookedSlot.userId).session(session);
-			if (!mentee) {
-			  throw new Error('Mentee not found');
+			const bookedSlot = await BookedSlots.findById(slotId).session(session);
+			if (!bookedSlot) {
+				throw new Error('Booked slot not found');
 			}
-	  
-			mentee.wallet = (mentee.wallet || 0) + scheduleTime.price;
-			await mentee.save({ session });
-		  }
-	  
-		  const newScheduleTime = new ScheduleTime({
-			date: scheduleTime.date,
-			startTime: scheduleTime.startTime,
-			endTime: scheduleTime.endTime,
-			price: scheduleTime.price,
-			mentorId: scheduleTime.mentorId,
-			isBooked: false, 
-		  });
-	  
-		  await newScheduleTime.save({ session });
-	  
-		  bookedSlot.status = 'cancelled';
-		  await bookedSlot.save({ session });
-	  
-		  await scheduleTime.save({ session });
-	  
-		  await session.commitTransaction();
-		  session.endSession();
+	
+			const scheduleTime = await ScheduleTime.findById(bookedSlot.slotId).session(session);
+			if (!scheduleTime) {
+				throw new Error('Related schedule not found');
+			}
+	
+			if (bookedSlot.userId) {
+				const mentee = await Mentee.findById(bookedSlot.userId).session(session);
+				if (!mentee) {
+					throw new Error('Mentee not found');
+				}
+	
+				mentee.wallet = (mentee.wallet || 0) + scheduleTime.price;
+	
+				if (!mentee.walletHistory) {
+					mentee.walletHistory = [];
+				}
+	
+				const transaction: ITransaction = {
+					date: new Date(),
+					description: `Slot cancellation refund for ${scheduleTime.price}`, 
+					amount: scheduleTime.price,
+					transactionType: 'credit', 
+					balanceAfterTransaction: mentee.wallet, 
+				};
+	
+				mentee.walletHistory.push(transaction);
+	
+				await mentee.save({ session });
+			}
+	
+			const newScheduleTime = new ScheduleTime({
+				date: scheduleTime.date,
+				startTime: scheduleTime.startTime,
+				endTime: scheduleTime.endTime,
+				price: scheduleTime.price,
+				mentorId: scheduleTime.mentorId,
+				isBooked: false,
+			});
+	
+			await newScheduleTime.save({ session });
+	
+			bookedSlot.status = 'cancelled';
+			await bookedSlot.save({ session });
+	
+			scheduleTime.isBooked = false;
+			await scheduleTime.save({ session });
+	
+			await session.commitTransaction();
+			session.endSession();
 		} catch (error) {
-		  await session.abortTransaction();
-		  session.endSession();
-	  
-		  if (error instanceof Error) {
-			console.error('Error:', error.message);
-		  } else {
-			console.log('An unknown error occurred');
-		  }
-		  throw error;
+			await session.abortTransaction();
+			session.endSession();
+	
+			if (error instanceof Error) {
+				console.error('Error:', error.message);
+			} else {
+				console.log('An unknown error occurred');
+			}
+			throw error;
 		}
-	  }
+	}
+	
 
 
 	  async qaQuestion(title:string,body:string,menteeId:string):Promise<void>{
@@ -824,9 +945,79 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 		}
 	  }
 	  
+
+	  async addReview(
+		menteeId: string,
+		rating: number,
+		comment: string,
+		mentorId: string
+	  ): Promise<void> {
+		try {
+		  const alreadyRated = await Rating.findOne({ mentee: menteeId, mentor: mentorId });
+		  
+		  if (alreadyRated) {
+			alreadyRated.ratingValue = rating;
+			alreadyRated.comment = comment;
+			await alreadyRated.save();
+			console.log('Rating updated successfully.');
+		  } else {
+			const createNewRating = new Rating({
+			  ratingValue: rating,
+			  comment: comment,
+			  mentee: menteeId,
+			  mentor: mentorId,
+			});
+			await createNewRating.save();
+			console.log('Rating created successfully.');
+		  }
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.error('Error:', error.message);
+		  } else {
+			console.log('An unknown error occurred');
+		  }
+		  throw error; 
+		}
+	  }
+	  
+	  async getNotifications(menteeId: string): Promise<INotification[]> {
+		try {
+			const notifications = await NotificationModel.find({ reciver: menteeId, read: false })
+  			.sort({ createdAt: -1 });
+			return notifications
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error("Error:", error.message);
+			} else {
+				console.log("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+
+	async markReadChat(menteeId: string,chatId:string): Promise<void> {
+		try {
+			await NotificationModel.updateMany(
+				{
+				  chat: chatId,
+				  reciver: menteeId,
+				  read: false,
+				},
+				{
+				  $set: { read: true },
+				}
+			  );
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error("Error:", error.message);
+			} else {
+				console.log("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
 	
 	  
-	   
 }
 
 export default MenteeRepository;
