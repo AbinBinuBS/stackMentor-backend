@@ -32,6 +32,9 @@ router.put("/blockUser", adminAuthMiddleware, async (req, res) =>
 router.get("/getgraphData", adminAuthMiddleware, async (req, res) =>
 	adminController.getgraphData(req, res)
 );
+router.post("/auth/refresh-token", async (req, res) =>
+	adminController.createNewRefreshToken(req, res)
+);
 router.get("/getAllQuestions", adminAuthMiddleware, async (req, res) =>
 	adminController.getAllQuestions(req, res)
 );

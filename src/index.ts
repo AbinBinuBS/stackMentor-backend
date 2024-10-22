@@ -27,14 +27,14 @@ const PORT = 3001;
 connectDB();
 
 app.use(cors({
-  origin: 'https://stack-mentor.vercel.app',
+  origin: 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'refresh-token'],
   credentials: true,
 }));
 
 app.options('*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', 'https://stack-mentor.vercel.app');
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, refresh-token');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -71,7 +71,7 @@ const httpServer = http.createServer(app);
 const io = new Server(httpServer, {
   pingTimeout: 60000,
   cors: {
-    origin: 'https://stack-mentor.vercel.app',
+    origin: 'http://localhost:5173',
     credentials: true,
   },
 }); 

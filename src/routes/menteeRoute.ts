@@ -85,6 +85,10 @@ router.put("/updateProfile",menteeAuthMiddleware, async (req, res) =>
 	menteeController.editProfile(req, res)
 );
 
+router.post("/auth/refresh-token", async (req, res) =>
+	menteeController.createNewRefreshToken(req, res)
+);
+
 router.put("/changePassword",menteeAuthMiddleware, async (req, res) =>
 	menteeController.changePassword(req, res)
 );

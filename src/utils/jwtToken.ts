@@ -12,7 +12,7 @@ export const generateAccessToken = (user: userPayload) => {
 };
 
 export const generateRefreshToken = (user: userPayload) => {
-	return jwt.sign(user, refreshTokenSecret, { expiresIn: "7d" });
+	return jwt.sign(user, refreshTokenSecret, { expiresIn: "1d" });
 };
 
 export const verifyToken = (token: string): any => {

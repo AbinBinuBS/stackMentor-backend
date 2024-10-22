@@ -18,6 +18,7 @@ import { JWT_SECRET } from "../config/middilewareConfig";
 import { IQa } from "../models/qaModel";
 import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
 import { INotification } from "../models/notificationModel";
+import { ObjectId } from "mongoose";
 
 class MenteeService {
   constructor(private menteeRepository: MenteeRepository) {}
@@ -407,6 +408,37 @@ class MenteeService {
 				console.error(error.message);
 			}
 			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+
+  async createNewRefreshToken(
+		refreshTokenData: string
+	): Promise<TokenResponce> {
+		try {
+			const decoded = jwt.verify(
+				refreshTokenData,
+				process.env.REFRESH_TOKEN_PRIVATE_KEY as string
+			) as JwtPayload;
+			const { id } = decoded;
+			const isMentee = await this.menteeRepository.findMenteeById(id);
+			if (!isMentee) {
+				throw new Error("Mentee not found");
+			}
+			const userPayload: userPayload = {
+				id: isMentee._id as ObjectId,
+				name: isMentee.name,
+				email: isMentee.email,
+				isActive: isMentee.isActive,
+			};
+			const accessToken = generateAccessToken(userPayload);
+			const refreshToken = generateRefreshToken(userPayload);
+			return { accessToken, refreshToken };
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error("Failed to create new refresh token");
 		}
 	}
 

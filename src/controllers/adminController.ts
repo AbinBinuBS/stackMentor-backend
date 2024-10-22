@@ -144,6 +144,29 @@ class adminController {
 		}
 	}
 
+	async createNewRefreshToken(req:Request,res:Response):Promise<void>{
+        try{
+            const { refreshToken } = req.body;
+            if (!refreshToken) {
+                throw new Error("Something went wrong please try again.")
+            }
+            const response = await this.adminService.createNewRefreshToken(refreshToken)
+            if(response){
+                res.status(201).json({message:"Success",accessToken:response.accessToken,refreshToken:response.refreshToken})
+            }else{
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }catch(error){
+            if (error instanceof Error) {
+                console.error( error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error during refreshing token:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }
+    }
+
 	async getAllQuestions(req: Request, res: Response): Promise<void> {
 		try {
 			const AllQuestions = await this.adminService.getAllQuestions();

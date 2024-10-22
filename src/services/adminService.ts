@@ -1,3 +1,5 @@
+import { ObjectId } from "mongoose";
+import { adminPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
 import {
 	IAdminLogin,
 	IAdminMentorList,
@@ -12,6 +14,8 @@ import { IQa } from "../models/qaModel";
 import AdminRepository from "../repositories/adminRepository";
 import HashedPassword from "../utils/hashedPassword";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
+import jwt, { JwtPayload } from "jsonwebtoken";
+
 
 class AdminService {
 	constructor(private adminRepository: AdminRepository) {}
@@ -170,6 +174,36 @@ class AdminService {
 		  throw error;
 		}
 	  }
+
+	  async createNewRefreshToken(
+		refreshTokenData: string
+	): Promise<TokenResponce> {
+		try {
+			const decoded = jwt.verify(
+				refreshTokenData,
+				process.env.REFRESH_TOKEN_PRIVATE_KEY as string
+			) as JwtPayload;
+			const { id } = decoded;
+			const isAdmin = await this.adminRepository.findAdminById(id);
+			if (!isAdmin) {
+				throw new Error("Admin not found");
+			}
+			const userPayload: adminPayload = {
+				id: isAdmin._id as ObjectId,
+				name: isAdmin.name,
+				email: isAdmin.email,
+				isActive: isAdmin.isActive,
+			};
+			const accessToken = generateAccessToken(userPayload);
+			const refreshToken = generateRefreshToken(userPayload);
+			return { accessToken, refreshToken };
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error("Failed to create new refresh token");
+		}
+	}
 
 	  async getAllQuestions(): Promise<IQa[]> {
 		try {

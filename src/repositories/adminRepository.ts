@@ -216,6 +216,21 @@ class AdminRepository {
 		};
 	}
 
+	async findAdminById(id: string): Promise<IMentee | undefined> {
+		try {
+			const adminData = await Mentee.findById({ _id: id });
+			if (!adminData) {
+				throw new Error("admin do not exist");
+			}
+			return adminData;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
 	async getAllQuestions(): Promise<IQa[]> {
 		try {
 			const allQuestions = await QA.find()
