@@ -19,7 +19,7 @@ import { timeSheduleStatus } from "../constants/status";
 import generateRoomId from "../helper/randomIdHelprt";
 import QA, { IQa } from "../models/qaModel";
 import CommunityMeet from "../models/communityMeetModel";
-import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
+import { EnhancedCommunityMeet, EnhancedCommunityMeetCombined } from "../interfaces/servicesInterfaces/IMentor";
 import Rating, { IRating } from "../models/ratingModel";
 import NotificationModel, { INotification } from "../models/notificationModel";
 
@@ -771,31 +771,37 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 	
 	
 
-	async getWalletData(menteeId: string): Promise<IMentee | undefined> {
+	async getWalletData(menteeId: string, page: number, limit: number): Promise<{ mentee: IMentee, total: number }> {
 		try {
 			const walletData = await Mentee.findById(menteeId)
-				.select('_id name wallet walletHistory') 
+				.select('_id name wallet walletHistory')
 				.exec();
 	
 			if (walletData) {
+				const total = walletData.walletHistory ? walletData.walletHistory.length : 0;
+	
 				if (walletData.walletHistory) {
-					walletData.walletHistory.reverse();
+					walletData.walletHistory.reverse(); 
+					const paginatedWalletHistory = walletData.walletHistory.slice((page - 1) * limit, page * limit);
+					walletData.walletHistory = paginatedWalletHistory; 
 				}
-				return walletData; 
+	
+				return { mentee: walletData, total };
 			} else {
 				throw new Error("Mentee not found");
 			}
 		} catch (error) {
 			if (error instanceof Error) {
-				console.error("Error:", error.message);
+				console.error("Error fetching data:", error.message);
+				throw new Error(error.message);
 			} else {
-				console.log("An unknown error occurred");
+				console.error("Unknown error fetching data:", error);
+				throw new Error("Unable to fetch data at this moment.");
 			}
-			throw error;
 		}
 	}
 	
-
+	
 	async cancelSlot(slotId: string): Promise<void> {
 		const session = await mongoose.startSession();
 		session.startTransaction();
@@ -885,65 +891,106 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 		}
 	  }
 
-	  async getAllQuestions():Promise<IQa[] | undefined>{
-		try{
-			const questions:IQa[] = await QA.find()
-            .populate('menteeId', 'name')
-            .populate('mentorId', 'name'); 
-			return questions
-		}catch(error){
+	  async getAllQuestions(page: number, search: string, limit: number): Promise<{ questions: IQa[]; total: number } > {
+		try {
+			const query = search
+				? {
+					$or: [
+						{ title: { $regex: search, $options: 'i' } }, 
+						{ 'menteeId.name': { $regex: search, $options: 'i' } },
+						{ 'mentorId.name': { $regex: search, $options: 'i' } }
+					]
+				}
+				: {};
+	
+			const total = await QA.countDocuments(query);
+	
+			const questions: IQa[] = await QA.find(query)
+				.populate('menteeId', 'name')
+				.populate('mentorId', 'name')
+				.skip((page - 1) * limit)
+				.limit(limit);
+	
+			return { questions, total };
+		} catch (error) {
 			if (error instanceof Error) {
 				console.error('Error:', error.message);
-			  } else {
+			} else {
 				console.log('An unknown error occurred');
-			  }
-			  throw error;
+			}
+			throw error;
 		}
-	  }
+	}
+	
+	
 
-	  async getMeets(): Promise<EnhancedCommunityMeet[]> {
+	  async getMeets(page: number, limit: number, search: string, stack: string, date: string): Promise<EnhancedCommunityMeetCombined> {
 		try {
-		  const today = new Date();
-		  today.setHours(0, 0, 0, 0);
-	  
-		  const meetData = await CommunityMeet.find({
-			date: { $gte: today }, 
-		  })
-			.sort({ date: 1, startTime: 1 })
-			.lean()
-			.exec();
-	  
-		  const enhancedMeetData = await Promise.all(
-			meetData.map(async (meet): Promise<EnhancedCommunityMeet> => {
-			  const mentorVerifyData = await MentorVerifyModel.findOne(
-				{ mentorId: meet.mentorId },
-				'name image'
-			  )
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+	
+			const query: any = {
+				date: { $gte: today },
+			};
+	
+			if (search) {
+				query.about = { $regex: search, $options: 'i' };
+			}
+	
+			if (stack) {
+				query.stack = stack; 
+			}
+	
+			if (date) {
+				const selectedDate = new Date(date);
+				query.date = selectedDate; 
+			}
+	
+			const totalCount = await CommunityMeet.countDocuments(query).exec();
+	
+			const meetData = await CommunityMeet.find(query)
+				.sort({ date: 1, startTime: 1 })
+				.skip((page - 1) * limit) 
+				.limit(limit) 
 				.lean()
 				.exec();
-	  
-			  return {
-				...meet,
-				mentorInfo: mentorVerifyData
-				  ? {
-					  name: mentorVerifyData.name,
-					  image: mentorVerifyData.image,
-					}
-				  : undefined,
-			  };
-			})
-		  );
-	  
-		  return enhancedMeetData;
+	
+			const enhancedMeetData = await Promise.all(
+				meetData.map(async (meet): Promise<EnhancedCommunityMeet> => {
+					const mentorVerifyData = await MentorVerifyModel.findOne(
+						{ mentorId: meet.mentorId },
+						'name image' 
+					)
+						.lean()
+						.exec();
+	
+					return {
+						...meet,
+						mentorInfo: mentorVerifyData
+							? {
+								name: mentorVerifyData.name,
+								image: mentorVerifyData.image,
+							}
+							: undefined,
+					};
+				})
+			);
+			return {
+				meets: enhancedMeetData, 
+				totalCount: totalCount, 
+			};
 		} catch (error) {
-		  if (error instanceof Error) {
-			console.log(error.message);
-		  }
-		  throw new Error(
-			'An unexpected error occurred while fetching community meet data.'
-		  );
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error(
+				'An unexpected error occurred while fetching community meet data.'
+			);
 		}
-	  }
+	}
+	
+	
+	
 	  
 
 	  async addReview(

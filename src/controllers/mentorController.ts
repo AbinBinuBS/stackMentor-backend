@@ -536,9 +536,12 @@ class MentorController{
 
     async getAllQuestions(req:Request,res:Response):Promise<void>{
         try{
+            const page = parseInt(req.query.page as string) || 1; 
+            const limit = parseInt(req.query.limit as string) || 5; 
+            const status = req.query.isAnswered as string
             const mentorId = (req as any).mentor.id
-            const AllQuestions = await this.mentorService.getAllQuestions(mentorId)
-            res.status(200).json({message:"Success",questions:AllQuestions})
+            const { questions,total} = await this.mentorService.getAllQuestions(mentorId,page,limit,status)
+            res.status(200).json({message:"Success",questions,total})
         }catch(error){
             if (error instanceof Error) {
                 console.error( error.message);

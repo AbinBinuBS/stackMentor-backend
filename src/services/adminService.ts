@@ -68,13 +68,13 @@ class AdminService {
 		}
 	}
 
-	async getMentor(status: string): Promise<Array<IAdminMentorList>> {
+	async getMentor(status: string, page: number, limit: number, searchQuery: string): Promise<{ mentorData: Array<IAdminMentorList>, totalCount: number }> {
 		try {
-			const mentorData = await this.adminRepository.getMentor(status);
+			const { mentorData, totalCount } = await this.adminRepository.getMentor(status, page, limit, searchQuery);
 			if (!mentorData) {
 				throw new Error("No mentors are joined yet.");
 			}
-			return mentorData;
+			return { mentorData, totalCount };
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -84,6 +84,7 @@ class AdminService {
 			throw error;
 		}
 	}
+	
 
 	async blockMentor(id: string,active:boolean): Promise<boolean> {
 		try {
@@ -130,13 +131,26 @@ class AdminService {
 		}
 	}
 
-	async getUsers(): Promise<Array<IAdminUserList>> {
+	async getUsers(skip: number, limit: number,searchTerm:string): Promise<Array<IAdminUserList>> {
 		try {
-			const userData = await this.adminRepository.getUsers();
+			const userData = await this.adminRepository.getUsers(skip, limit,searchTerm);
 			if (!userData) {
 				throw new Error("No users are joined yet.");
 			}
 			return userData;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+	async getTotalUsersCount(searchTerm:string): Promise<number> {
+		try {
+			const totalCount = await this.adminRepository.getTotalUsersCount(searchTerm);
+			return totalCount;
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -205,10 +219,11 @@ class AdminService {
 		}
 	}
 
-	  async getAllQuestions(): Promise<IQa[]> {
+	async getAllQuestions(page: number, limit: number, status:string): Promise<{ questions: IQa[], totalCount: number }> {
 		try {
-			const AllQuestions = await this.adminRepository.getAllQuestions();
-			return AllQuestions
+			const totalCount = await this.adminRepository.countQuestions(status); 
+			const questions = await this.adminRepository.getAllQuestions(page, limit,status); 
+			return { questions, totalCount };
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -216,6 +231,7 @@ class AdminService {
 			throw new Error("An unexpected error occurred.");
 		}
 	}
+	
 	  
 	async editQAAnswer(questionId:string,answer:string): Promise<void> {
 		try {

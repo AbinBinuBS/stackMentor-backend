@@ -16,7 +16,7 @@ import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "../config/middilewareConfig";
 import { IQa } from "../models/qaModel";
-import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
+import { EnhancedCommunityMeet, EnhancedCommunityMeetCombined } from "../interfaces/servicesInterfaces/IMentor";
 import { INotification } from "../models/notificationModel";
 import { ObjectId } from "mongoose";
 
@@ -493,20 +493,22 @@ class MenteeService {
     }
   }
 
-  async getWalletData(menteeId:string): Promise< IMentee | undefined>{
-    try{
-      const walletData = await this.menteeRepository.getWalletData(menteeId)
-      return walletData
-    }catch(error){
-      if (error instanceof Error) {
-        console.error(error.message);
-        throw new Error(error.message)
-      } else {
-        console.error("error to fetch data:", error);
-        throw new Error("Unable to fetch data at this moment.")
-      }
+  async getWalletData(menteeId: string, page: number, limit: number): Promise<{ mentee: IMentee, total: number }> {
+    try {
+        const { mentee, total } = await this.menteeRepository.getWalletData(menteeId, page, limit);
+        
+        return { mentee, total };
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error(error.message);
+            throw new Error(error.message);
+        } else {
+            console.error("Error fetching wallet data:", error);
+            throw new Error("Unable to fetch wallet data at this moment.");
+        }
     }
-  }
+}
+
 
   async walletPayment(menteeId:string,slotId:string): Promise<boolean>{
     try{
@@ -553,10 +555,10 @@ class MenteeService {
     }
   }
 
-  async getAllQuestions(): Promise<IQa[] | undefined>{
+  async getAllQuestions( page:number,search:string,limit:number): Promise<{ questions: IQa[]; total: number }>{
     try{
-      const postData = await this.menteeRepository.getAllQuestions()
-      return postData
+      const { questions, total } = await this.menteeRepository.getAllQuestions( page,search,limit)
+      return { questions, total }
     }catch(error){
       if (error instanceof Error) {
         console.error(error.message);
@@ -568,9 +570,9 @@ class MenteeService {
     }
   }
 
-  async getMeets(): Promise<EnhancedCommunityMeet[]> {
+  async getMeets(page:number,limit:number,search:string,stack:string,date:string): Promise<EnhancedCommunityMeetCombined> {
 		try {
-			const meetData = await this.menteeRepository.getMeets();
+			const meetData = await this.menteeRepository.getMeets(page,limit,search,stack,date);
 			return meetData
 		} catch (error) {
 			if (error instanceof Error) {

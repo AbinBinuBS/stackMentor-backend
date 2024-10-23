@@ -141,16 +141,24 @@ export interface IExistingMessage {
 	};
 }
 
+
 export interface IQaData {
-	_id: unknown;
+	_id: string;
 	title: string;
 	body: string;
+	isAnswered: boolean;
 	reply?: string;
-	isAnswered?: boolean;
-	menteeId?: { _id: string; name: string } | undefined;
-	mentorId?: { _id: string; name: string } | undefined;
-}
-
+	menteeId?: {
+	  _id: string;
+	  name: string;
+	};
+	mentorId?: {
+	  _id: string;
+	  name: string;
+	};
+	createdAt: Date;
+	updatedAt: Date;
+  }
 export interface ITransaction {
     date: Date;
     description: string;

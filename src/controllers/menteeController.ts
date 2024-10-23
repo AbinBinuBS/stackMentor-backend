@@ -267,21 +267,26 @@ class MenteeController {
         }
     }
 
-    async getWalletData(req:Request,res:Response):Promise<void>{
-        try{
-            const menteeId =  (req as any).mentee.id 
-            const walletData = await this.menteeService.getWalletData(menteeId)
-            res.status(200).json({message:"Success" , walletData:walletData})
-        }catch(error){
+    async getWalletData(req: Request, res: Response): Promise<void> {
+        try {
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 5;
+            const menteeId = (req as any).mentee.id;
+    
+            const walletData = await this.menteeService.getWalletData(menteeId, page, limit);
+    
+            res.status(200).json({ message: "Success", walletData });
+        } catch (error) {
             if (error instanceof Error) {
-                console.error( error.message);
+                console.error(error.message);
                 res.status(500).json({ message: error.message });
             } else {
-                console.error('Unknown error during  mentor:', error);
+                console.error('Unknown error during mentor fetch:', error);
                 res.status(500).json({ message: 'Internal server error' });
             }
         }
     }
+    
 
     async cancelSlot(req:Request,res:Response):Promise<void>{
         try{
@@ -320,8 +325,12 @@ class MenteeController {
 
     async getAllQuestions(req:Request,res:Response):Promise<void>{
         try{
-            const getQuestions = await this.menteeService.getAllQuestions()
-            res.status(200).json({message:"Success",questions:getQuestions })
+            const page = parseInt(req.query.page as string) || 1; 
+		    const limit =  5; 
+            const search = req.query.search as string || ""; 
+            console.log(req.query)
+            const  { questions, total }  = await this.menteeService.getAllQuestions( page,search,limit)
+            res.status(200).json({message:"Success",questions,totalPages:total })
         }catch(error){
             if (error instanceof Error) {
                 console.error( error.message);
@@ -336,8 +345,14 @@ class MenteeController {
     
     async getMeets(req:Request,res:Response):Promise<void>{
         try{
-            const meetData = await this.menteeService.getMeets()
-            res.status(200).json({message:"Success",meetData})
+            const { page,limit,search,stack,date } = req.query
+            const parsedPage = parseInt(page as string, 10) || 1
+            const parsedLimit = parseInt(limit as string, 10) || 3
+            const parsedSearch: string = (req.query.search as string) || ''; 
+            const parsedStack: string = (req.query.stack as string) || '';
+            const parsedDate: string = (req.query.date as string) || ''; 
+            const meetsData = await this.menteeService.getMeets(parsedPage, parsedLimit,parsedSearch,parsedStack,parsedDate)
+            res.status(200).json({message:"Success",meetData:meetsData.meets,count:meetsData.totalCount})
         }catch(error){
             if (error instanceof Error) {
                 console.error( error.message);

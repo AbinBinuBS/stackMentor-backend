@@ -18,11 +18,15 @@ class AdminRepository {
 		}
 	}
 
-	async getMentor(status: string): Promise<Array<IAdminMentorList>> {
+	async getMentor(status: string, page: number, limit: number, searchQuery: string): Promise<{ mentorData: Array<IAdminMentorList>, totalCount: number }> {
 		try {
+			console.log(searchQuery)
 			const matchCriteria: any = {
-				isVerified: status,
+				...(status ? { isVerified: status } : {}),
+				...(searchQuery ? { $or: [{ name: { $regex: searchQuery, $options: "i" } }, { email: { $regex: searchQuery, $options: "i" } }] } : {})
 			};
+	
+			const totalCount = await Mentor.countDocuments(matchCriteria);
 			const mentorData = await Mentor.aggregate([
 				{ $match: matchCriteria },
 				{ $sort: { createdAt: -1 } },
@@ -35,8 +39,11 @@ class AdminRepository {
 						isVerified: 1,
 					},
 				},
+				{ $skip: (page - 1) * limit },
+				{ $limit: limit },
 			]);
-			return mentorData;
+	
+			return { mentorData, totalCount };
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -46,6 +53,11 @@ class AdminRepository {
 			throw error;
 		}
 	}
+	
+	
+	
+
+
 	async blockMentor(id: string, active: boolean): Promise<boolean> {
 		try {
 			const newStatus = !active;
@@ -123,35 +135,65 @@ class AdminRepository {
 		}
 	}
 
-	async getUsers(): Promise<Array<IAdminMentorList>> {
+	async getUsers(skip: number, limit: number, searchTerm: string): Promise<Array<IAdminMentorList>> {
 		try {
-		  const userData = await Mentee.aggregate([
-			{
-			  $match: { isAdmin: false }
-			},
-			{ 
-			  $sort: { createdAt: -1 } 
-			},
-			{
-			  $project: {
-				_id: 1,
-				name: 1,
-				email: 1,
-				isActive: 1,
-				isVerified: 1,
-			  },
-			},
-		  ]);
-		  return userData;
+			const userData = await Mentee.aggregate([
+				{
+					$match: { 
+						isAdmin: false,
+						$or: [ 
+							{ name: { $regex: searchTerm, $options: 'i' } },
+							{ email: { $regex: searchTerm, $options: 'i' } }
+						]
+					}
+				},
+				{ 
+					$sort: { createdAt: -1 } 
+				},
+				{
+					$project: {
+						_id: 1,
+						name: 1,
+						email: 1,
+						isActive: 1,
+						isVerified: 1,
+					},
+				},
+				{ $skip: skip }, 
+				{ $limit: limit } 
+			]);
+			return userData;
 		} catch (error) {
-		  if (error instanceof Error) {
-			console.error(error.message);
-		  } else {
-			console.error("An unknown error occurred");
-		  }
-		  throw error;
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
 		}
-	  }	  
+	}
+		  
+
+	async getTotalUsersCount(searchTerm: string): Promise<number> {
+		try {
+			const totalCount = await Mentee.countDocuments({
+				isAdmin: false,
+				$or: [
+					{ name: { $regex: searchTerm, $options: 'i' } },
+					{ email: { $regex: searchTerm, $options: 'i' } }
+				]
+			});
+			return totalCount;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+	
 
 	async blockUser(id: string, active: boolean): Promise<boolean> {
 		try {
@@ -231,19 +273,53 @@ class AdminRepository {
 		}
 	}
 
-	async getAllQuestions(): Promise<IQa[]> {
+	async getAllQuestions(page: number, limit: number, status: string): Promise<IQa[]> {
 		try {
-			const allQuestions = await QA.find()
-			  .sort({ isAnswered: 1, createdAt: -1 }); 
-		  
-			 return allQuestions
+			const skip = (page - 1) * limit; 
+	
+			const queryCondition: Record<string, any> = {};
+	
+			if (status === "answered") {
+				queryCondition.isAnswered = true;
+			} else if (status === "unanswered") {
+				queryCondition.isAnswered = false;
+			}
+	
+			const allQuestions = await QA.find(queryCondition)
+				.sort({ createdAt: -1 }) 
+				.skip(skip) 
+				.limit(limit);
+	
+			return allQuestions;
 		} catch (error) {
-		  if (error instanceof Error) {
-			console.log(error.message);
-		  }
-		  throw new Error('An unexpected error occurred.');
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error('An unexpected error occurred.');
 		}
-	  }
+	}
+	
+	
+	async countQuestions(status: string): Promise<number> {
+		try {
+			const queryCondition: Record<string, any> = {};
+	
+			if (status === "answered") {
+				queryCondition.isAnswered = true;
+			} else if (status === "unanswered") {
+				queryCondition.isAnswered = false;
+			}
+	
+			return await QA.countDocuments(queryCondition);
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error('An unexpected error occurred while counting questions.');
+		}
+	}
+	
+	
 
 	  async editQAAnswer(questionId:string,answer:string): Promise<void> {
 		try {

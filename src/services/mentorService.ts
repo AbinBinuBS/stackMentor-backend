@@ -601,10 +601,10 @@ class MentorService {
 	}
 
 
-	async getAllQuestions(mentorId:string): Promise<IQa[]> {
+	async getAllQuestions(mentorId:string,page:number,limit:number,status:string): Promise<{ questions: IQa[], total: number }> {
 		try {
-			const AllQuestions = await this.mentorRepository.getAllQuestions(mentorId);
-			return AllQuestions
+			const { questions,total} = await this.mentorRepository.getAllQuestions(mentorId,page,limit,status);
+			return { questions,total}
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);

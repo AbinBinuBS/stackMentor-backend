@@ -36,9 +36,10 @@ class adminController {
 
 	async getMentor(req: Request, res: Response): Promise<void> {
 		try {
-			const status = req.body.status;
-			const mentorData = await this.adminService.getMentor(status);
-			res.status(200).json({ message: "Success", mentorData });
+			const { status, page, limit, search } = req.body; 
+			const { mentorData, totalCount } = await this.adminService.getMentor(status, page, limit, search);
+			const totalPages = Math.ceil(totalCount / limit);
+			res.status(200).json({ message: "Success", mentorData, totalPages });
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(`Unknown error in Admin: ${error.message}`);
@@ -46,6 +47,7 @@ class adminController {
 			res.status(500).json({ message: "Internal Server Error" });
 		}
 	}
+	
 
 	async blockMentor(req: Request, res: Response): Promise<void> {
 		try {
@@ -101,8 +103,17 @@ class adminController {
 
 	async getUsers(req: Request, res: Response): Promise<void> {
 		try {
-			const userData = await this.adminService.getUsers();
-			res.status(200).json({ message: "Success", userData });
+			const page = parseInt(req.query.page as string) || 1; 
+			const limit = parseInt(req.query.limit as string) || 8; 
+			const skip = (page - 1) * limit;
+			const searchTerm = req.body.searchTerm as string || ""; 
+			const userData = await this.adminService.getUsers(skip, limit, searchTerm);
+			const totalCount = await this.adminService.getTotalUsersCount(searchTerm); 
+			res.status(200).json({ 
+				message: "Success", 
+				userData,
+				totalCount, 
+			});
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(`Unknown error in Admin: ${error.message}`);
@@ -110,6 +121,7 @@ class adminController {
 			res.status(500).json({ message: "Internal Server Error" });
 		}
 	}
+	
 
 	async blockUser(req: Request, res: Response): Promise<void> {
 		try {
@@ -168,19 +180,23 @@ class adminController {
     }
 
 	async getAllQuestions(req: Request, res: Response): Promise<void> {
+		const page = parseInt(req.query.page as string) || 1; 
+		const limit = parseInt(req.query.limit as string) || 5; 
+		const status = req.query.isAnswered as string 
 		try {
-			const AllQuestions = await this.adminService.getAllQuestions();
-			res.status(200).json({ message: "Success", questions: AllQuestions });
+			const { questions, totalCount } = await this.adminService.getAllQuestions(page, limit, status);
+			res.status(200).json({ message: "Success", questions, totalCount });
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
 				res.status(500).json({ message: error.message });
 			} else {
-				console.error("Unknown error during  mentor:", error);
+				console.error("Unknown error during fetching questions:", error);
 				res.status(500).json({ message: "Internal server error" });
 			}
 		}
 	}
+	
 
 	async editQAAnswer(req: Request, res: Response): Promise<void> {
 		try {

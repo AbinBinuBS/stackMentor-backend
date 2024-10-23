@@ -107,6 +107,11 @@ export interface EnhancedCommunityMeet
 	};
 }
 
+export interface EnhancedCommunityMeetCombined {
+	meets: EnhancedCommunityMeet[];
+	totalCount:number;
+}
+
 
 export type WeekDay = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 

@@ -614,24 +614,34 @@ class MentorRepository {
 		}
 	  }
 
-	  async getAllQuestions(mentorId:string): Promise<IQa[]> {
+	  async getAllQuestions(mentorId: string, page: number, limit: number, status: string): Promise<{ questions: IQa[], total: number }> {
 		try {
-			const allQuestions = await QA.find({
-				$or: [
-				  { isAnswered: false },
-				  { mentorId: mentorId }
-				]
-			  })
-			  .sort({ isAnswered: 1, createdAt: -1 }); 
-		  
-			 return allQuestions
+			const query: any = {};
+			let total = 0; 
+			if (status === "unanswered") {
+				query.isAnswered = false;
+				total = await QA.countDocuments({ isAnswered: false }) || 0; 
+			} else if (status === "myAnswers") {
+				query.mentorId = mentorId;
+				total = await QA.countDocuments({ mentorId: mentorId }) || 0; 
+			}
+	
+			const allQuestions = await QA.find(query)
+				.sort({ isAnswered: 1, createdAt: -1 })  
+				.skip((page - 1) * limit)
+				.limit(limit);
+	
+			return { questions: allQuestions, total };
 		} catch (error) {
-		  if (error instanceof Error) {
-			console.log(error.message);
-		  }
-		  throw new Error('An unexpected error occurred.');
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error('An unexpected error occurred.');
 		}
-	  }
+	}
+	
+	
+	
 
 	  async submitQAAnswer(questionId:string,mentorId:string,answer:string): Promise<void> {
 		try {
