@@ -1,22 +1,7 @@
-import {
-	IOtpVerify,
-	TokenResponce,
-} from "../interfaces/servicesInterfaces/IMentee";
+
 import { IMentor } from "../models/mentorModel";
 import MentorRepository from "../repositories/mentorRepository";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
-import { mentorPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
-import {
-	EnhancedCommunityMeet,
-	ICOmmunityFormData,
-	IMentorLogin,
-	ISlotMentor,
-	ISlotsList,
-	MentorVerification,
-	MentorVerifyData,
-	MentorVerifyFiles,
-	WeekDay,
-} from "../interfaces/servicesInterfaces/IMentor";
 import HashedPassword from "../utils/hashedPassword";
 import { ObjectId, Types } from "mongoose";
 import dotenv from "dotenv";
@@ -27,6 +12,9 @@ import { IQa } from "../models/qaModel";
 import { RRule, RRuleSet, rrulestr, Weekday } from "rrule";
 import { IRating } from "../models/ratingModel";
 import { INotification } from "../models/notificationModel";
+import { IOtpVerify, TokenResponce } from "../types/servicesInterfaces/IMentee";
+import { mentorPayload } from "../types/commonInterfaces/tokenInterfaces";
+import { EnhancedCommunityMeet, ICOmmunityFormData, IMentorLogin, ISlotMentor, ISlotsList, MentorVerification, MentorVerifyData } from "../types/servicesInterfaces/IMentor";
 
 dotenv.config();
 
@@ -291,7 +279,6 @@ class MentorService {
             throw new Error("Date is required for normal scheduling.");
         }
 
-        // Convert date string to Date object if it's a string
         const scheduleDate = typeof date === 'string' ? new Date(date) : date;
 
         if (!(scheduleDate instanceof Date) || isNaN(scheduleDate.getTime())) {

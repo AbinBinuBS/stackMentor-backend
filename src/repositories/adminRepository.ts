@@ -1,13 +1,14 @@
-import { IAdminMentorList, IDashboardData, IMentorConbineData } from "../interfaces/servicesInterfaces/IAdmin";
 import Mentee, { IMentee } from "../models/menteeModel";
 import Mentor, { IMentor } from "../models/mentorModel";
 import ScheduleTime from "../models/mentorTimeSchedule";
 import MentorVerifyModel, { IMentorVerify } from "../models/mentorValidate";
 import QA, { IQa } from "../models/qaModel";
-import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
 import CommunityMeet from "../models/communityMeetModel";
+import { IAdminMentorList, IDashboardData, IMentorConbineData } from "../types/servicesInterfaces/IAdmin";
+import { EnhancedCommunityMeet } from "../types/servicesInterfaces/IMentor";
+import { IAdminRepository } from "../interfaces/admin/IAdminRepository";
 
-class AdminRepository {
+class AdminRepository implements IAdminRepository {
 	async findAdminByEmail(email: string): Promise<IMentee | null> {
 		try {
 			const menteeData = await Mentee.findOne({ email }).exec();
@@ -18,15 +19,13 @@ class AdminRepository {
 		}
 	}
 
-	async getMentor(status: string, page: number, limit: number, searchQuery: string): Promise<{ mentorData: Array<IAdminMentorList>, totalCount: number }> {
+	async getMentor(status: string, page: number, limit: number, searchQuery: string): Promise< Array<IAdminMentorList>> {
 		try {
-			console.log(searchQuery)
 			const matchCriteria: any = {
 				...(status ? { isVerified: status } : {}),
 				...(searchQuery ? { $or: [{ name: { $regex: searchQuery, $options: "i" } }, { email: { $regex: searchQuery, $options: "i" } }] } : {})
 			};
 	
-			const totalCount = await Mentor.countDocuments(matchCriteria);
 			const mentorData = await Mentor.aggregate([
 				{ $match: matchCriteria },
 				{ $sort: { createdAt: -1 } },
@@ -42,8 +41,7 @@ class AdminRepository {
 				{ $skip: (page - 1) * limit },
 				{ $limit: limit },
 			]);
-	
-			return { mentorData, totalCount };
+			return mentorData 
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -55,7 +53,23 @@ class AdminRepository {
 	}
 	
 	
-	
+	async getMentorCount(status:string,searchQuery:string):Promise<number>{
+		try{
+			const matchCriteria: any = {
+				...(status ? { isVerified: status } : {}),
+				...(searchQuery ? { $or: [{ name: { $regex: searchQuery, $options: "i" } }, { email: { $regex: searchQuery, $options: "i" } }] } : {})
+			};
+			const totalCount = await Mentor.countDocuments(matchCriteria);
+			return totalCount
+		}catch(error){
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
 
 
 	async blockMentor(id: string, active: boolean): Promise<boolean> {
@@ -81,17 +95,13 @@ class AdminRepository {
 		}
 	}
 
-	async getMentorDetails(id: string): Promise<IMentorConbineData> {
+	async findMentorById(id: string): Promise<IMentor> {
 		try {
 			const mentor = await Mentor.findById(id)
-			const mentorData = await MentorVerifyModel.findOne({ mentorId: id });
-			if (!mentorData) {
-				throw new Error("something happend, please try again.");
-			}
 			if(!mentor){
 				throw new Error("something happend, please try again.");
 			}
-			return {mentorData,mentor}
+			return mentor
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -102,7 +112,24 @@ class AdminRepository {
 		}
 	}
 
-	async updateMentorStatus(id: string, status: string): Promise<boolean> {
+	async findMentorVerifyById(id: string): Promise<IMentorVerify> {
+		try {
+			const mentorData = await MentorVerifyModel.findOne({ mentorId: id });
+			if (!mentorData) {
+				throw new Error("something happend, please try again.");
+			}
+			return mentorData
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+
+	async findMentorByIdAndUpdate(id: string, status: string): Promise<IMentor> {
 		try {
 			const mentorStatus = await Mentor.findByIdAndUpdate(
 				id,
@@ -112,6 +139,20 @@ class AdminRepository {
 			if (!mentorStatus) {
 				throw new Error("Mentor not found or update failed, please try again.");
 			}
+			return mentorStatus
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(`Error updating mentor status: ${error.message}`);
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
+		}
+	}
+
+
+	async updateMentorStatus(id: string, status: string): Promise<boolean> {
+		try {
 			if (status === "verified") {
 				const verifyMentorUpdate = await MentorVerifyModel.findOneAndUpdate(
 					{ mentorId: id },
@@ -218,7 +259,7 @@ class AdminRepository {
 		}
 	}
 
-	async getGraphData(): Promise<IDashboardData> {
+	async getGraphData(): Promise<number[]> {
 		const currentYear = new Date().getFullYear();
 		const revenueData = await ScheduleTime.aggregate([
 			{
@@ -247,15 +288,31 @@ class AdminRepository {
 			monthlyRevenue[data._id - 1] = data.total; 
 		});
 	
-		const mentorCount = await Mentor.countDocuments();
-	
-		const menteeCount = await Mentee.countDocuments();
-	
-		return {
-			monthlyRevenue,
-			mentorCount,
-			menteeCount,
-		};
+		return monthlyRevenue
+	}
+
+	async totalMenteeCount(): Promise<number> {
+		try {
+			const menteeCount = await Mentee.countDocuments();
+			return menteeCount;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async totalMentorCount(): Promise<number> {
+		try {
+			const mentorCount = await Mentor.countDocuments();
+			return mentorCount;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error("An unexpected error occurred.");
+		}
 	}
 
 	async findAdminById(id: string): Promise<IMentee | undefined> {
@@ -273,19 +330,9 @@ class AdminRepository {
 		}
 	}
 
-	async getAllQuestions(page: number, limit: number, status: string): Promise<IQa[]> {
+	async getAllQuestions(skip: number, limit: number, status: Record<string, boolean | string | number | object | undefined>): Promise<IQa[]> {
 		try {
-			const skip = (page - 1) * limit; 
-	
-			const queryCondition: Record<string, any> = {};
-	
-			if (status === "answered") {
-				queryCondition.isAnswered = true;
-			} else if (status === "unanswered") {
-				queryCondition.isAnswered = false;
-			}
-	
-			const allQuestions = await QA.find(queryCondition)
+			const allQuestions = await QA.find(status)
 				.sort({ createdAt: -1 }) 
 				.skip(skip) 
 				.limit(limit);
@@ -300,17 +347,9 @@ class AdminRepository {
 	}
 	
 	
-	async countQuestions(status: string): Promise<number> {
+	async countQuestions(status: Record<string, boolean | string | number | object | undefined>): Promise<number> {
 		try {
-			const queryCondition: Record<string, any> = {};
-	
-			if (status === "answered") {
-				queryCondition.isAnswered = true;
-			} else if (status === "unanswered") {
-				queryCondition.isAnswered = false;
-			}
-	
-			return await QA.countDocuments(queryCondition);
+			return await QA.countDocuments(status);
 		} catch (error) {
 			if (error instanceof Error) {
 				console.log(error.message);

@@ -1,24 +1,15 @@
 import MenteeRepository from "../repositories/menteeRepository";
 import Mentee, { IMentee } from "../models/menteeModel";
 import HashedPassword from "../utils/hashedPassword";
-import { userPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
-import ICheckIsBooked, {
-  BookedSlot,
-  ICombinedData,
-  IMenteeLogin,
-  IMentorShowcase,
-  IOtpVerify,
-  ISlot,
-  TokenResponce,
-  TokenwithCridential,
-} from "../interfaces/servicesInterfaces/IMentee";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "../config/middilewareConfig";
 import { IQa } from "../models/qaModel";
-import { EnhancedCommunityMeet, EnhancedCommunityMeetCombined } from "../interfaces/servicesInterfaces/IMentor";
 import { INotification } from "../models/notificationModel";
 import { ObjectId } from "mongoose";
+import ICheckIsBooked, { BookedSlot, ICombinedData, IMenteeLogin, IMentorShowcase, IOtpVerify, ISlot, TokenResponce, TokenwithCridential } from "../types/servicesInterfaces/IMentee";
+import { userPayload } from "../types/commonInterfaces/tokenInterfaces";
+import { EnhancedCommunityMeetCombined } from "../types/servicesInterfaces/IMentor";
 
 class MenteeService {
   constructor(private menteeRepository: MenteeRepository) {}

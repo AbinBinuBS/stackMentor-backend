@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import { userPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
+import { userPayload } from "../types/commonInterfaces/tokenInterfaces";
 
 dotenv.config();
 

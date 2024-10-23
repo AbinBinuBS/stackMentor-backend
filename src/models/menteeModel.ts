@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { ITransaction } from '../interfaces/servicesInterfaces/IMentee';
+import { ITransaction } from '../types/servicesInterfaces/IMentee';
 
 export interface IMentee extends Document {
     name: string;

@@ -4,7 +4,7 @@ import {
 	VerifyCallback,
 } from "passport-google-oauth2";
 import dotenv from "dotenv";
-import { User } from "../interfaces/commonInterfaces/passportInterfaces";
+import { User } from "../types/commonInterfaces/passportInterfaces";
 
 dotenv.config();
 

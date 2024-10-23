@@ -1,8 +1,9 @@
 import { Request, Response } from "express-serve-static-core";
-import adminService from "../services/adminService";
+import { IAdminService } from "../interfaces/admin/IAdminService";
+import { SuccessMessages } from "../enums/successMessage";
 
 class adminController {
-	constructor(private adminService: adminService) {}
+	constructor(private adminService: IAdminService) {}
 
 	async adminLogin(req: Request, res: Response): Promise<void> {
 		try {
@@ -12,7 +13,7 @@ class adminController {
 				res
 					.status(201)
 					.json({
-						message: "Success",
+						message: SuccessMessages.Success,
 						accessToken: adminData.accessToken,
 						refreshToken: adminData.refreshToken,
 					});
@@ -37,9 +38,8 @@ class adminController {
 	async getMentor(req: Request, res: Response): Promise<void> {
 		try {
 			const { status, page, limit, search } = req.body; 
-			const { mentorData, totalCount } = await this.adminService.getMentor(status, page, limit, search);
-			const totalPages = Math.ceil(totalCount / limit);
-			res.status(200).json({ message: "Success", mentorData, totalPages });
+			const { mentorData, totalPages } = await this.adminService.getMentor(status, page, limit, search);
+			res.status(200).json({ message: SuccessMessages.Success, mentorData, totalPages });
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(`Unknown error in Admin: ${error.message}`);
@@ -71,7 +71,7 @@ class adminController {
         try{
             const id = req.query.id as string;
             const {mentorData,mentor} = await this.adminService.getMentorDetails(id)
-            res.status(200).json({message:"Success",mentorData:mentorData,mentor:mentor})
+            res.status(200).json({message:SuccessMessages.Success,mentorData:mentorData,mentor:mentor})
         }catch(error){
             if(error instanceof Error){
                 console.error(`Unknown error in Admin: ${error.message}`);
@@ -79,6 +79,7 @@ class adminController {
             res.status(500).json({ message: 'Internal Server Error' });
         }
     }
+
 	async updateMentorStatus(req: Request, res: Response): Promise<void> {
 		try {
 			const { id, status } = req.body;
@@ -110,7 +111,7 @@ class adminController {
 			const userData = await this.adminService.getUsers(skip, limit, searchTerm);
 			const totalCount = await this.adminService.getTotalUsersCount(searchTerm); 
 			res.status(200).json({ 
-				message: "Success", 
+				message: SuccessMessages.Success, 
 				userData,
 				totalCount, 
 			});
@@ -145,7 +146,7 @@ class adminController {
 		try {
 			const graphData = await this.adminService.getgraphData();
 			res.status(200).json({
-				message: "Success",
+				message: SuccessMessages.Success,
 				data: graphData,
 			});
 		} catch (error) {
@@ -164,7 +165,7 @@ class adminController {
             }
             const response = await this.adminService.createNewRefreshToken(refreshToken)
             if(response){
-                res.status(201).json({message:"Success",accessToken:response.accessToken,refreshToken:response.refreshToken})
+                res.status(201).json({message:SuccessMessages.Success,accessToken:response.accessToken,refreshToken:response.refreshToken})
             }else{
                 res.status(500).json({ message: 'Internal server error' });
             }
@@ -185,7 +186,7 @@ class adminController {
 		const status = req.query.isAnswered as string 
 		try {
 			const { questions, totalCount } = await this.adminService.getAllQuestions(page, limit, status);
-			res.status(200).json({ message: "Success", questions, totalCount });
+			res.status(200).json({ message: SuccessMessages.Success, questions, totalCount });
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -201,11 +202,11 @@ class adminController {
 	async editQAAnswer(req: Request, res: Response): Promise<void> {
 		try {
 			const { questionId, answer } = req.body;
-			const editAnswer = await this.adminService.editQAAnswer(
+			 await this.adminService.editQAAnswer(
 				questionId,
 				answer
 			);
-			res.status(200).json({ message: "Success" });
+			res.status(200).json({ message: SuccessMessages.Success });
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -221,7 +222,7 @@ class adminController {
 		try {
 			const questionId = req.params.id;
 			const editAnswer = await this.adminService.removeQuestion(questionId);
-			res.status(200).json({ message: "Success" });
+			res.status(200).json({ message: SuccessMessages.Success });
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -236,7 +237,7 @@ class adminController {
 	async getMeets(req: Request, res: Response): Promise<void> {
 		try {
 			const meetData = await this.adminService.getMeets();
-			res.status(200).json({ message: "Success", meetData });
+			res.status(200).json({ message: SuccessMessages.Success, meetData });
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);

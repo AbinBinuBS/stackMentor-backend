@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { JWT_SECRET, REFRESH_TOKEN_SECRET } from '../config/middilewareConfig';
-import { mentorPayload } from '../interfaces/commonInterfaces/tokenInterfaces';
 import Mentee from '../models/menteeModel';
+import { mentorPayload } from '../types/commonInterfaces/tokenInterfaces';
 
 const menteeAuthMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     const token = req.header('Authorization')?.split(' ')[1];

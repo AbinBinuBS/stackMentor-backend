@@ -1,12 +1,4 @@
-import e from "express";
-import {
-	EnhancedCommunityMeet,
-	ICOmmunityFormData,
-	ISlotMentor,
-	ISlotsList,
-	MentorVerification,
-	MentorVerifyData,
-} from "../interfaces/servicesInterfaces/IMentor";
+
 import Mentor, { IMentor } from "../models/mentorModel";
 import ScheduleTime, { IScheduleTime } from "../models/mentorTimeSchedule";
 import MentorVerifyModel, { IMentorVerify } from "../models/mentorValidate";
@@ -21,9 +13,10 @@ import BookedSlots from "../models/bookedSlots";
 import QA, { IQa } from "../models/qaModel";
 import CommunityMeet, { ICommunityMeet } from "../models/communityMeetModel";
 import CommunityRoomId from "../helper/communityMeetHelper";
-import { ITransaction } from "../interfaces/servicesInterfaces/IMentee";
 import Rating, { IRating } from "../models/ratingModel";
 import NotificationModel, { INotification } from "../models/notificationModel";
+import { EnhancedCommunityMeet, ICOmmunityFormData, ISlotMentor, ISlotsList, MentorVerification, MentorVerifyData } from "../types/servicesInterfaces/IMentor";
+import { ITransaction } from "../types/servicesInterfaces/IMentee";
 
 
 

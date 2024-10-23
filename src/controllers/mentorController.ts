@@ -1,11 +1,10 @@
 import { Request, Response } from "express";
 import MentorService from "../services/mentorService";
-import { MentorVerifyFiles } from "../interfaces/servicesInterfaces/IMentor";
 import cloudinary from "../utils/cloudinary";
 import fs from 'fs'
-import { FileUrls } from "../interfaces/servicesInterfaces/ICloudinary";
-import { UploadResult } from "../interfaces/servicesInterfaces/ICloudinary";
 import { IScheduleTime } from "../models/mentorTimeSchedule";
+import { FileUrls, UploadResult } from "../types/servicesInterfaces/ICloudinary";
+import { MentorVerifyFiles } from "../types/servicesInterfaces/IMentor";
 
 
 

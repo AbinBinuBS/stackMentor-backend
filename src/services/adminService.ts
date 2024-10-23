@@ -1,24 +1,17 @@
 import { ObjectId } from "mongoose";
-import { adminPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
-import {
-	IAdminLogin,
-	IAdminMentorList,
-	IAdminUserList,
-	IDashboardData,
-	IMentorConbineData,
-	TokenResponce,
-} from "../interfaces/servicesInterfaces/IAdmin";
-import { EnhancedCommunityMeet } from "../interfaces/servicesInterfaces/IMentor";
-import { IMentorVerify } from "../models/mentorValidate";
 import { IQa } from "../models/qaModel";
-import AdminRepository from "../repositories/adminRepository";
 import HashedPassword from "../utils/hashedPassword";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { IAdminLogin, IAdminMentorList, IAdminUserList, IDashboardData, IMentorConbineData, TokenResponce } from "../types/servicesInterfaces/IAdmin";
+import { adminPayload } from "../types/commonInterfaces/tokenInterfaces";
+import { EnhancedCommunityMeet } from "../types/servicesInterfaces/IMentor";
+import { IAdminService } from "../interfaces/admin/IAdminService";
+import { IAdminRepository } from "../interfaces/admin/IAdminRepository";
 
 
-class AdminService {
-	constructor(private adminRepository: AdminRepository) {}
+class AdminService implements IAdminService {
+	constructor(private adminRepository: IAdminRepository) {}
 	async adminLogin(
 		adminData: Partial<IAdminLogin>
 	): Promise<TokenResponce | null | undefined> {
@@ -68,13 +61,15 @@ class AdminService {
 		}
 	}
 
-	async getMentor(status: string, page: number, limit: number, searchQuery: string): Promise<{ mentorData: Array<IAdminMentorList>, totalCount: number }> {
+	async getMentor(status: string, page: number, limit: number, searchQuery: string): Promise<{ mentorData: Array<IAdminMentorList>, totalPages: number }> {
 		try {
-			const { mentorData, totalCount } = await this.adminRepository.getMentor(status, page, limit, searchQuery);
+			const mentorData= await this.adminRepository.getMentor(status, page, limit, searchQuery);
 			if (!mentorData) {
 				throw new Error("No mentors are joined yet.");
 			}
-			return { mentorData, totalCount };
+			const totalCount = await this.adminRepository.getMentorCount(status,searchQuery)
+			const totalPages = Math.ceil(totalCount / limit) | 0
+			return { mentorData, totalPages };
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -102,7 +97,8 @@ class AdminService {
 
 	async getMentorDetails(id:string): Promise< IMentorConbineData>{
 		try{
-			const {mentorData,mentor} = await this.adminRepository.getMentorDetails(id)
+			const mentor = await this.adminRepository.findMentorById(id)
+			const mentorData = await this.adminRepository.findMentorVerifyById(id)
 			return {mentorData,mentor}
 		}catch(error){
 			if (error instanceof Error) {
@@ -116,6 +112,7 @@ class AdminService {
 
 	async updateMentorStatus(id:string,status:string): Promise<boolean>{
 		try{
+			const mentorData = await this.adminRepository.findMentorByIdAndUpdate(id, status)
 			const mentorStatus = await this.adminRepository.updateMentorStatus(id,status)
 			if(mentorStatus){
 				return true
@@ -177,8 +174,14 @@ class AdminService {
 
 	async getgraphData(): Promise<IDashboardData> {
 		try {
-			const graphData = await this.adminRepository.getGraphData();
-			return graphData;
+			const mentorCount = await this.adminRepository.totalMentorCount()
+			const menteeCount = await this.adminRepository.totalMenteeCount()
+			const monthlyRevenue = await this.adminRepository.getGraphData();
+			return {
+				monthlyRevenue,
+				menteeCount,
+				mentorCount
+			}
 		} catch (error) {
 		  if (error instanceof Error) {
 			console.error(error.message);
@@ -221,8 +224,15 @@ class AdminService {
 
 	async getAllQuestions(page: number, limit: number, status:string): Promise<{ questions: IQa[], totalCount: number }> {
 		try {
-			const totalCount = await this.adminRepository.countQuestions(status); 
-			const questions = await this.adminRepository.getAllQuestions(page, limit,status); 
+			const queryCondition: Record<string, boolean | string | number | object | undefined> = {};
+			const skip = (page - 1) * limit;
+			if (status === "answered") {
+				queryCondition.isAnswered = true;
+			} else if (status === "unanswered") {
+				queryCondition.isAnswered = false;
+			}
+			const totalCount = await this.adminRepository.countQuestions(queryCondition); 
+			const questions = await this.adminRepository.getAllQuestions(skip, limit,queryCondition); 
 			return { questions, totalCount };
 		} catch (error) {
 			if (error instanceof Error) {
@@ -235,7 +245,7 @@ class AdminService {
 	  
 	async editQAAnswer(questionId:string,answer:string): Promise<void> {
 		try {
-			const editAnswer = await this.adminRepository.editQAAnswer(questionId,answer);
+			await this.adminRepository.editQAAnswer(questionId,answer);
 			return 
 		} catch (error) {
 			if (error instanceof Error) {
@@ -247,7 +257,7 @@ class AdminService {
 
 	async removeQuestion(questionId:string): Promise<void> {
 		try {
-			const editAnswer = await this.adminRepository.removeQuestion(questionId);
+			await this.adminRepository.removeQuestion(questionId);
 			return 
 		} catch (error) {
 			if (error instanceof Error) {

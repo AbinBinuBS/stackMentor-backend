@@ -38,3 +38,7 @@ export interface IMentorConbineData {
     mentor: IMentor
 }
 
+export interface IMatchCriteria {
+    $or?: Array<{ name: { $regex: string; $options: string; } } | { email: { $regex: string; $options: string; } }>;
+    isVerified?: boolean; 
+}

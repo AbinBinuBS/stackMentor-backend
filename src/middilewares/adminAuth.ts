@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../config/middilewareConfig";
-import { adminPayload } from "../interfaces/commonInterfaces/tokenInterfaces";
 import Mentee from "../models/menteeModel";
+import { adminPayload } from "../types/commonInterfaces/tokenInterfaces";
 
 const adminAuthMiddleware = async(
 	req: Request,

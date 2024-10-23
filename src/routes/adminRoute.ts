@@ -10,42 +10,17 @@ const adminRepository = new AdminRepository();
 const adminService = new AdminService(adminRepository);
 const adminController = new AdminController(adminService);
 
-router.post("/login", async (req, res) => adminController.adminLogin(req, res));
-router.post("/getMentor", async (req, res) =>
-	adminController.getMentor(req, res)
-);
-router.put("/blockMentor", adminAuthMiddleware, async (req, res) =>
-	adminController.blockMentor(req, res)
-);
-router.get("/getMentorDetails", adminAuthMiddleware, async (req, res) =>
-	adminController.getMentorDetails(req, res)
-);
-router.post("/updateMentorStatus", adminAuthMiddleware, async (req, res) =>
-	adminController.updateMentorStatus(req, res)
-);
-router.post("/getUser", adminAuthMiddleware, async (req, res) =>
-	adminController.getUsers(req, res)
-);
-router.put("/blockUser", adminAuthMiddleware, async (req, res) =>
-	adminController.blockUser(req, res)
-);
-router.get("/getgraphData", adminAuthMiddleware, async (req, res) =>
-	adminController.getgraphData(req, res)
-);
-router.post("/auth/refresh-token", async (req, res) =>
-	adminController.createNewRefreshToken(req, res)
-);
-router.get("/getAllQuestions", adminAuthMiddleware, async (req, res) =>
-	adminController.getAllQuestions(req, res)
-);
-router.put("/editAnswer", adminAuthMiddleware, async (req, res) =>
-	adminController.editQAAnswer(req, res)
-);
-router.delete("/removeQuestion/:id", adminAuthMiddleware, async (req, res) =>
-	adminController.removeQuestion(req, res)
-);
-router.get("/getMeets", adminAuthMiddleware, async (req, res) =>
-	adminController.getMeets(req, res)
-);
+router.post("/login", adminController.adminLogin.bind(adminController));
+router.post("/getMentor", adminController.getMentor.bind(adminController));
+router.put("/blockMentor", adminAuthMiddleware,adminController.blockMentor.bind(adminController));
+router.get("/getMentorDetails", adminAuthMiddleware,adminController.getMentorDetails.bind(adminController));
+router.post("/updateMentorStatus", adminAuthMiddleware,adminController.updateMentorStatus.bind(adminController));
+router.post("/getUser", adminAuthMiddleware,adminController.getUsers.bind(adminController));
+router.put("/blockUser", adminAuthMiddleware,adminController.blockUser.bind(adminController));
+router.get("/getgraphData", adminAuthMiddleware, adminController.getgraphData.bind(adminController));
+router.get("/getAllQuestions", adminAuthMiddleware, adminController.getAllQuestions.bind(adminController));
+router.put("/editAnswer", adminAuthMiddleware,adminController.editQAAnswer.bind(adminController));
+router.delete("/removeQuestion/:id", adminAuthMiddleware,adminController.removeQuestion.bind(adminController));
+router.get("/getMeets", adminAuthMiddleware, adminController.getMeets.bind(adminController));
 
 export default router;

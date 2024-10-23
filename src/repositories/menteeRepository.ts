@@ -1,13 +1,4 @@
 import mongoose, { Types } from "mongoose";
-import ICheckIsBooked, {
-	BookedSlot,
-	ICombinedData,
-	IMentorShowcase,
-	IMentorVerification,
-	IQaData,
-	ISlot,
-	ITransaction,
-} from "../interfaces/servicesInterfaces/IMentee";
 import Mentee from "../models/menteeModel";
 import ScheduleTime, { IScheduleTime } from "../models/mentorTimeSchedule";
 import MentorVerifyModel from "../models/mentorValidate";
@@ -19,9 +10,10 @@ import { timeSheduleStatus } from "../constants/status";
 import generateRoomId from "../helper/randomIdHelprt";
 import QA, { IQa } from "../models/qaModel";
 import CommunityMeet from "../models/communityMeetModel";
-import { EnhancedCommunityMeet, EnhancedCommunityMeetCombined } from "../interfaces/servicesInterfaces/IMentor";
 import Rating, { IRating } from "../models/ratingModel";
 import NotificationModel, { INotification } from "../models/notificationModel";
+import ICheckIsBooked, { BookedSlot, ICombinedData, IMentorShowcase, IMentorVerification, ISlot, ITransaction } from "../types/servicesInterfaces/IMentee";
+import { EnhancedCommunityMeet, EnhancedCommunityMeetCombined } from "../types/servicesInterfaces/IMentor";
 
 class MenteeRepository {
 	async menteeRegister(
