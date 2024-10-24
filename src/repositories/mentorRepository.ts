@@ -15,7 +15,7 @@ import CommunityMeet, { ICommunityMeet } from "../models/communityMeetModel";
 import CommunityRoomId from "../helper/communityMeetHelper";
 import Rating, { IRating } from "../models/ratingModel";
 import NotificationModel, { INotification } from "../models/notificationModel";
-import { EnhancedCommunityMeet, ICOmmunityFormData, ISlotMentor, ISlotsList, MentorVerification, MentorVerifyData } from "../types/servicesInterfaces/IMentor";
+import { EnhancedCommunityMeet, ICOmmunityFormData, ISlotMentor, ISlotsList, MentorVerification, MentorVerifyData, RatingCounts, RatingResponse } from "../types/servicesInterfaces/IMentor";
 import { ITransaction } from "../types/servicesInterfaces/IMentee";
 
 
@@ -806,25 +806,69 @@ class MentorRepository {
 		}
 	  }
 
-	  async getMentorRating(mentorId:string): Promise<IRating[] | null> {
-		try {
-			const mentor = await MentorVerifyModel.findOne({mentorId:mentorId})
-			if(!mentor){
-				throw new Error("mentor is not valid")
+		async getMentorRating(mentorId: string, page: number, limit: number, skip: number): Promise<{
+		  ratings: IRating[];
+		  totalCount: number;
+		  ratingCounts: RatingCounts;
+		}> {
+		  try {
+			const mentor = await MentorVerifyModel.findOne({ mentorId });
+			if (!mentor) {
+			  throw new Error("Mentor is not valid");
 			}
-			const mentorverifyId = mentor?._id
-			const reviewData = await Rating.find({ mentor: mentorverifyId })
+			const mentorverifyId = mentor._id;
+	  
+			// Get paginated ratings
+			const ratings = await Rating.find({ mentor: mentorverifyId })
 			  .populate('mentee', 'name')
+			  .skip(skip)
+			  .limit(limit)
 			  .exec();
-			  return reviewData
-		} catch (error) {
-		  if (error instanceof Error) {
-			console.log(error.message);
+	  
+			// Get total count
+			const totalCount = await Rating.countDocuments({ mentor: mentorverifyId });
+	  
+			// Get rating counts
+			const ratingCounts = await Rating.aggregate([
+			  { $match: { mentor: mentorverifyId } },
+			  {
+				$group: {
+				  _id: '$ratingValue',
+				  count: { $sum: 1 }
+				}
+			  }
+			]);
+	  
+			// Format rating counts
+			const formattedRatingCounts: RatingCounts = {
+			  1: 0,
+			  2: 0,
+			  3: 0,
+			  4: 0,
+			  5: 0
+			};
+	  
+			ratingCounts.forEach(({ _id, count }) => {
+			  if (_id >= 1 && _id <= 5) {
+				formattedRatingCounts[_id as keyof RatingCounts] = count;
+			  }
+			});
+	  
+			return {
+			  ratings,
+			  totalCount,
+			  ratingCounts: formattedRatingCounts
+			};
+		  } catch (error) {
+			if (error instanceof Error) {
+			  console.log(error.message);
+			}
+			throw new Error('An unexpected error occurred.');
 		  }
-		  throw new Error('An unexpected error occurred.');
 		}
-	  }
-
+	  
+	  
+	
 	  async getNotifications(mentorId: string): Promise<INotification[]> {
 		try {
 			const mentorData = await MentorVerifyModel.findOne({mentorId:mentorId})

@@ -1,6 +1,7 @@
 import { ObjectId, Types } from "mongoose";
 import { ICommunityMeet } from "../../models/communityMeetModel";
 import { IMentor } from "../../models/mentorModel";
+import { IRating } from "../../models/ratingModel";
 
 export interface IMentorLogin {
 	email: string;
@@ -116,3 +117,17 @@ export interface EnhancedCommunityMeetCombined {
 export type WeekDay = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 
 
+export interface RatingCounts {
+	1: number;
+	2: number;
+	3: number;
+	4: number;
+	5: number;
+  }
+  
+  export interface RatingResponse {
+	ratings: IRating[];
+	totalCount: number;
+	ratingCounts: RatingCounts;
+	totalPages: number;
+  }

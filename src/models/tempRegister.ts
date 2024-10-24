@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { ITransaction } from '../types/servicesInterfaces/IMentee';
 
 export interface IMentee extends Document {
     name: string;
@@ -7,8 +8,10 @@ export interface IMentee extends Document {
     phone: string;
     isActive: boolean;
     isAdmin: boolean;
+    wallet?: number; 
     createdAt?: Date;
     updatedAt?: Date;
+    walletHistory?: ITransaction[];
     otp?: number;
 }
 
