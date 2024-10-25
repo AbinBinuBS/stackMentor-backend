@@ -2,6 +2,7 @@ import { ObjectId, Types } from "mongoose";
 import { ICommunityMeet } from "../../models/communityMeetModel";
 import { IMentor } from "../../models/mentorModel";
 import { IRating } from "../../models/ratingModel";
+import { IChat } from "../../models/chatModel";
 
 export interface IMentorLogin {
 	email: string;
@@ -130,4 +131,23 @@ export interface RatingCounts {
 	totalCount: number;
 	ratingCounts: RatingCounts;
 	totalPages: number;
+  }
+
+
+  export interface IMessageCombined {
+	_id: ObjectId;
+	sender: {
+	  _id: ObjectId;
+	  name: string;
+	  email: string;
+	};
+	senderModel: string;
+	receiver: ObjectId;
+	receiverModel: string;
+	content: string;
+	chat: IChat
+	readBy: Array<ObjectId>;
+	createdAt: Date;
+	updatedAt: Date;
+	__v: number;
   }

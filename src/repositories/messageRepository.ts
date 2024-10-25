@@ -1,10 +1,12 @@
+import { IMessageRepository } from "../interfaces/message/IMessageRepository";
 import Chat from "../models/chatModel";
+import Mentee, { IMentee } from "../models/menteeModel";
 import MentorVerifyModel from "../models/mentorValidate";
 import Message, { IMessage } from "../models/messageModel";
 import NotificationModel from "../models/notificationModel";
 
 
-class MessageRepository {
+class MessageRepository implements IMessageRepository {
     async getAllMessage(chatId: string): Promise<IMessage[]> {
         try {
             const messages = await Message.find({ chat: chatId })
