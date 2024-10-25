@@ -528,25 +528,7 @@ class MenteeService implements IMenteeService{
 		}
 	}
 
-  async proceedPayment(sessionId:string,accessToken:string): Promise< boolean>{
-    try{
-      if (accessToken.startsWith("Bearer ")) {
-				accessToken = accessToken.split(" ")[1];
-			}
-			const decoded = jwt .verify(accessToken,JWT_SECRET as string) as JwtPayload;
-			const { id } = decoded;
-      const bookSlot = await this.menteeRepository.proceedPayment(sessionId,id)
-      return true
-    }catch(error){
-      if (error instanceof Error) {
-        console.error(error.message);
-        throw new Error(error.message)
-      } else {
-        console.error("error to fetch data:", error);
-        throw new Error("Unable to fetch data at this moment.")
-      }
-    }
-  }
+  
 
   async getWalletData(menteeId: string, page: number, limit: number): Promise<{ mentee: IMentee, total: number }> {
     try {
@@ -565,20 +547,7 @@ class MenteeService implements IMenteeService{
 }
 
 
-  async walletPayment(menteeId:string,slotId:string): Promise<boolean>{
-    try{
-      await this.menteeRepository.walletPayment(menteeId,slotId)
-      return true
-    }catch(error){
-      if (error instanceof Error) {
-        console.error(error.message);
-        throw new Error(error.message)
-      } else {
-        console.error("error to fetch data:", error);
-        throw new Error("Unable to fetch data at this moment.")
-      }
-    }
-  }
+
 
   async cancelSlot(slotId:string): Promise< void>{
     try{

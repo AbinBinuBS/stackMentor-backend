@@ -476,7 +476,7 @@ class MentorService implements IMentorService {
         });
     }
 
-	async getScheduledSlots(accessToken:string): Promise< ISlotsList[] | undefined> {
+	async getScheduledSlots(accessToken:string,page:number,limit:number,date:string): Promise<{ totalCount: number; slots: Array<ISlotsList> } | undefined> {
 		try {
 			if (accessToken.startsWith("Bearer ")) {
 				accessToken = accessToken.split(" ")[1];
@@ -486,7 +486,7 @@ class MentorService implements IMentorService {
 				JWT_SECRET as string
 			) as JwtPayload;
 			const { id } = decoded;
-			const getSlots = await this.mentorRepository.getScheduledSlots(id)
+			const getSlots = await this.mentorRepository.getScheduledSlots(id,page,limit,date)
 			return getSlots
 		} catch (error) {
 			if (error instanceof Error) {
@@ -525,15 +525,15 @@ class MentorService implements IMentorService {
 	}
 
 
-	async getBookedSlots(accessToken:string): Promise<ISlotMentor[]> {
+	async getBookedSlots(accessToken: string, page: number, limit: number): Promise<{ slots: ISlotMentor[], totalCount: number }> {
 		try {
-			if(accessToken.startsWith("Bearer")){
-				accessToken = accessToken.split(" ")[1]
+			if (accessToken.startsWith("Bearer")) {
+				accessToken = accessToken.split(" ")[1];
 			}
-			const decoded = jwt.verify(accessToken,JWT_SECRET as string) as JwtPayload
-			const {id} = decoded
-			const getSlots = await this.mentorRepository.getBookedSlots(id)
-			return getSlots 
+			const decoded = jwt.verify(accessToken, JWT_SECRET as string) as JwtPayload;
+			const { id } = decoded;
+			const getSlots = await this.mentorRepository.getBookedSlots(id, page, limit);
+			return getSlots; 
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -543,6 +543,7 @@ class MentorService implements IMentorService {
 			throw error;
 		}
 	}
+	
 
 	async getMentorData(mentorId:string): Promise<MentorVerification> {
 		try {

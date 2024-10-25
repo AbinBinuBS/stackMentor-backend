@@ -21,9 +21,9 @@ export interface IMentorService {
     scheduleNormalTime(scheduleData: IScheduleTime, mentorId: string): Promise<IScheduleTime[]>
     scheduleWeeklyTime(scheduleData: IScheduleTime, mentorId: string): Promise<IScheduleTime[]>
     scheduleCustomTime(scheduleData: IScheduleTime, mentorId: string): Promise<IScheduleTime[]>
-    getScheduledSlots(accessToken:string): Promise< ISlotsList[] | undefined>
+    getScheduledSlots(accessToken:string,page:number,limit:number,date:string): Promise<{ totalCount: number; slots: Array<ISlotsList> } | undefined>
     deleteScheduledSlot(id:string): Promise< boolean>
-    getBookedSlots(accessToken:string): Promise<ISlotMentor[]>
+    getBookedSlots(accessToken: string, page: number, limit: number): Promise<{ slots: ISlotMentor[], totalCount: number }>
     getMentorData(mentorId:string): Promise<MentorVerification>
     editProfile(name: string, mentorId: string, imageUrl?: string): Promise<void>
     changePassword(oldPassword:string,newPassword:string,mentorId:string): Promise<boolean>

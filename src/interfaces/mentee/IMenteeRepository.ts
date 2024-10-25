@@ -31,8 +31,6 @@ export interface IMenteeRepository {
     editProfile(name: string,menteeId: string,): Promise<void>
     findMenteeById(id: string): Promise<IMentee | undefined>
     changePassword(menteeId: string, newPassword: string): Promise<boolean>
-    proceedPayment(scheduledId: string,userId: string): Promise<IScheduleTime | null>
-    walletPayment(userId: string, slotId: string): Promise<IScheduleTime | null>
     getWalletData(menteeId: string, page: number, limit: number): Promise<{ mentee: IMentee, total: number }>
     cancelSlot(bookedSlot:IBookedSlots,scheduleTime:IScheduleTime,mentee:IMentee): Promise<void>
     qaQuestion(title:string,body:string,menteeId:string):Promise<void>

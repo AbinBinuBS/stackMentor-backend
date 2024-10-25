@@ -23,10 +23,10 @@ export interface IMentorRepository {
     verifyMentorInDatabase(mentorData: MentorVerifyData,id: string): Promise<boolean>
     findMentorById(id: string): Promise<IMentor | undefined>
     findOverlappingSchedule(mentorId: string,occurrenceDate: Date,startTime: string,endTime: string): Promise<IScheduleTime | null>
-    getScheduledSlots(id: string): Promise<Array<ISlotsList> | undefined>
+    getScheduledSlots(id: string, page: number, limit: number, date?: string): Promise<{ totalCount: number; slots: Array<ISlotsList> } | undefined>
     findScheduleById(id: string): Promise<IScheduleTime | null>
     deleteScheduledSlot(id: string): Promise<boolean>
-    getBookedSlots(id: string): Promise<ISlotMentor[]>
+    getBookedSlots(id: string, page: number, limit: number): Promise<{ slots: ISlotMentor[], totalCount: number }>
     getMentorData(mentorId: string): Promise<MentorVerification | undefined>
     updateMentor(name: string,mentorId: string,imageUrl?: string): Promise<void>
     updateMentorVerify(name: string,mentorId: string,imageUrl?: string): Promise<void>

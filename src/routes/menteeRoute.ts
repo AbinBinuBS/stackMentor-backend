@@ -3,12 +3,20 @@ import MenteeRepository from "../repositories/menteeRepository";
 import MenteeService from "../services/menteeService";
 import MenteeController from "../controllers/menteeController";
 import menteeAuthMiddleware from "../middilewares/userAuth";
+import PaymentRepository from "../repositories/paymentRepository";
+import PaymentService from "../services/paymentService";
+import PaymentController from "../controllers/paymentController";
 
 const router = Router();
 
 const menteeRepository = new MenteeRepository();
 const menteeService = new MenteeService(menteeRepository);
 const menteeController = new MenteeController(menteeService);
+
+
+const paymentRepository = new PaymentRepository();
+const paymentService = new PaymentService(paymentRepository);
+const paymentController = new PaymentController(paymentService);
 
 router.post("/register",menteeController.menteeRegister.bind(menteeController));
 router.post("/googleRegister",menteeController.googleRegister.bind(menteeController));
@@ -35,12 +43,13 @@ router.post("/getMenteeDetails",menteeAuthMiddleware,menteeController.getMenteeD
 router.put("/updateProfile",menteeAuthMiddleware,menteeController.editProfile.bind(menteeController));
 router.post("/auth/refresh-token",menteeController.createNewRefreshToken.bind(menteeController));
 router.put("/changePassword",menteeAuthMiddleware,menteeController.changePassword.bind(menteeController));
-router.post("/menteePayment",menteeController.paymentMethod.bind(menteeController));
-router.post("/proceedPayment",menteeController.proceedPayment.bind(menteeController));
-router.post("/payUsingWallet", menteeAuthMiddleware,menteeController.walletPayment.bind(menteeController));
 router.post("/review", menteeAuthMiddleware,menteeController.addReview.bind(menteeController));
 router.get("/getNotifications", menteeAuthMiddleware,menteeController.getNotifications.bind(menteeController));
 router.put("/readChat/:id", menteeAuthMiddleware,menteeController.markReadChat.bind(menteeController));
+
+router.post("/menteePayment",paymentController.paymentMethod.bind(paymentController));
+router.post("/proceedPayment",paymentController.proceedPayment.bind(paymentController));
+router.post("/payUsingWallet", menteeAuthMiddleware,paymentController.walletPayment.bind(paymentController));
 
 
 export default router;

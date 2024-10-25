@@ -338,21 +338,27 @@ class MentorController{
     
     
 
-    async getScheduledSlots(req:Request,res:Response):Promise<void>{
-        try{
-            const accessToken = req.headers['authorization'] as string
-           const slotsData = await this.mentorService.getScheduledSlots(accessToken)
-            res.status(200).json({message:"Slots sent successfully" , sloteData:slotsData})
-        }catch(error){
+    async getScheduledSlots(req: Request, res: Response): Promise<void> {
+        try {
+            const page = parseInt(req.query.page as string) || 1; 
+            const limit = parseInt(req.query.limit as string) || 6;
+            const date = req.query.date as string;
+            const accessToken = req.headers['authorization'] as string;
+            console.log(req.query); 
+            const slotsData = await this.mentorService.getScheduledSlots(accessToken, page, limit, date);
+            console.log(slotsData)
+            res.status(200).json({ message: "Slots sent successfully", sloteData: slotsData?.slots,totalCount:slotsData?.totalCount });
+        } catch (error) {
             if (error instanceof Error) {
-                console.error( error.message);
+                console.error(error.message);
                 res.status(500).json({ message: error.message });
             } else {
-                console.error('Unknown error during  getting slots:', error);
+                console.error('Unknown error during getting slots:', error);
                 res.status(500).json({ message: 'Internal server error' });
             }
         }
     }
+    
 
     async deleteScheduledSlot(req:Request,res:Response):Promise<void>{
         try{
@@ -378,21 +384,28 @@ class MentorController{
         }
     }
 
-    async getBookedSlots(req:Request,res:Response):Promise<void>{
-        try{
-            const accessToken = req.headers['authorization'] as string
-            const getSlots = await this.mentorService.getBookedSlots(accessToken)
-            res.status(200).json({message:"Success",Slots:getSlots})
-        }catch(error){
+    async getBookedSlots(req: Request, res: Response): Promise<void> {
+        try {
+            const page = parseInt(req.query.page as string) || 1; 
+            const limit = parseInt(req.query.limit as string) || 5;
+            const accessToken = req.headers['authorization'] as string;
+            const { slots, totalCount } = await this.mentorService.getBookedSlots(accessToken, page, limit);
+            res.status(200).json({
+                message: "Success",
+                slots: slots,
+                totalCount: totalCount,
+            });
+        } catch (error) {
             if (error instanceof Error) {
-                console.error( error.message);
+                console.error(error.message);
                 res.status(500).json({ message: error.message });
             } else {
-                console.error('Unknown error during  fetching slots:', error);
+                console.error('Unknown error during fetching slots:', error);
                 res.status(500).json({ message: 'Internal server error' });
             }
         }
     }
+    
 
 
     async getMentorData(req:Request,res:Response):Promise<void>{

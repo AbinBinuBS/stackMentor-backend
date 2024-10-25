@@ -25,9 +25,7 @@ export interface IMenteeService {
     editProfile(name: string, menteeId: string): Promise<void>
     createNewRefreshToken(refreshTokenData: string): Promise<TokenResponce>
     changePassword(oldPassword:string,newPassword:string,menteeId:string): Promise<boolean>
-    proceedPayment(sessionId:string,accessToken:string): Promise< boolean>
     getWalletData(menteeId: string, page: number, limit: number): Promise<{ mentee: IMentee, total: number }>
-    walletPayment(menteeId:string,slotId:string): Promise<boolean>
     cancelSlot(slotId:string): Promise< void>
     qaQuestion(title:string,body:string,menteeId:string): Promise<void>
     getAllQuestions( page:number,search:string): Promise<{ questions: IQa[]; total: number }>

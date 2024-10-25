@@ -298,45 +298,74 @@ class MentorRepository implements IMentorRepository{
 		}
 	}
 
-	async getScheduledSlots(id: string): Promise<Array<ISlotsList> | undefined> {
+	async getScheduledSlots(id: string, page: number, limit: number, date?: string): Promise<{ totalCount: number; slots: Array<ISlotsList> } | undefined> {
 		try {
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
 	
-			const scheduledDatas = await ScheduleTime.aggregate([
+			let startOfDay: Date | null = null;
+			let endOfDay: Date | null = null;
+			if (date) {
+				startOfDay = new Date(date);
+				startOfDay.setHours(0, 0, 0, 0);
+				endOfDay = new Date(date);
+				endOfDay.setHours(23, 59, 59, 999); 
+			}
+	
+			const matchCriteria: any = {
+				mentorId: new mongoose.Types.ObjectId(id),
+			};
+	
+			if (startOfDay && endOfDay) {
+				matchCriteria.date = {
+					$gte: startOfDay,
+					$lte: endOfDay,
+				};
+			} else {
+				matchCriteria.date = { $gte: today };
+			}
+	
+			const result = await ScheduleTime.aggregate([
 				{
-					$match: {
-						mentorId: new mongoose.Types.ObjectId(id),
-						date: { $gte: today },
-					},
+					$match: matchCriteria,
 				},
 				{
 					$lookup: {
-						from: 'bookedslots', 
-						localField: '_id',   
-						foreignField: 'slotId', 
-						as: 'bookedSlots',  
+						from: 'bookedslots',
+						localField: '_id',
+						foreignField: 'slotId',
+						as: 'bookedSlots',
+					},
+				},
+				{
+					$facet: {
+						totalCount: [
+							{ $count: 'count' } 
+						],
+						slots: [
+							{ $skip: (page - 1) * limit },
+							{ $limit: limit },
+						],
+					},
+				},
+				{
+					$unwind: {
+						path: "$totalCount",
+						preserveNullAndEmptyArrays: true, 
 					},
 				},
 				{
 					$project: {
-						_id: 1,
-						date: 1,
-						startTime: 1,
-						endTime: 1,
-						bookedSlots: {
-							isAllowed: 1,
-							isAttended: 1,
-							isExpired: 1,
-							status: 1,
-							userId: 1,
-							roomId: 1,
-						},
+						totalCount: { $ifNull: ["$totalCount.count", 0] },
+						slots: "$slots",
 					},
 				},
 			]);
 	
-			return scheduledDatas;
+			return {
+				totalCount: result.length > 0 ? result[0].totalCount : 0,
+				slots: result.length > 0 ? result[0].slots : [],
+			};
 		} catch (error) {
 			if (error instanceof Error) {
 				console.log(error.message);
@@ -344,6 +373,8 @@ class MentorRepository implements IMentorRepository{
 			throw new Error("An unexpected error occurred.");
 		}
 	}
+	
+	
 	
 
 	async findScheduleById(id: string): Promise<IScheduleTime | null> {
@@ -372,32 +403,32 @@ class MentorRepository implements IMentorRepository{
 	}
 
 	
-	async getBookedSlots(id: string): Promise<ISlotMentor[]> {
+	async getBookedSlots(id: string, page: number, limit: number): Promise<{ slots: ISlotMentor[], totalCount: number }> {
 		try {
 			const objectId = new mongoose.Types.ObjectId(id);
 			const today = new Date();
-			today.setHours(0, 0, 0, 0); 
+			today.setHours(0, 0, 0, 0);
 	
-			const bookedSlots: ISlotMentor[] = await ScheduleTime.aggregate([
+			const bookedSlotsData = await ScheduleTime.aggregate([
 				{
 					$match: {
 						mentorId: objectId,
 						isBooked: true,
-						date: { $gte: today }, 
+						date: { $gte: today },
 					},
 				},
 				{
 					$lookup: {
-						from: 'bookedslots', 
+						from: 'bookedslots',
 						localField: '_id',
 						foreignField: 'slotId',
-						as: 'bookingData', 
+						as: 'bookingData',
 					},
 				},
 				{
 					$unwind: {
 						path: '$bookingData',
-						preserveNullAndEmptyArrays: true, 
+						preserveNullAndEmptyArrays: true,
 					},
 				},
 				{
@@ -410,21 +441,51 @@ class MentorRepository implements IMentorRepository{
 						'bookingData._id': 1,
 						'bookingData.roomId': 1,
 						'bookingData.userId': 1,
-						'bookingData.status': 1, 
-						'bookingData.isAllowed': 1, 
-
+						'bookingData.status': 1,
+						'bookingData.isAllowed': 1,
 					},
 				},
 				{
-					$sort: {
-						date: 1, 
-						startTime: 1, 
+					$facet: {
+						slots: [
+							{
+								$sort: {
+									date: 1,
+									startTime: 1,
+								},
+							},
+							{
+								$skip: (page - 1) * limit,
+							},
+							{
+								$limit: limit, 
+							},
+						],
+						totalCount: [
+							{
+								$count: 'count', 
+							},
+						],
+					},
+				},
+				{
+					$unwind: {
+						path: '$totalCount',
+						preserveNullAndEmptyArrays: true,
+					},
+				},
+				{
+					$project: {
+						slots: '$slots',
+						totalCount: { $ifNull: ['$totalCount.count', 0] }, 
 					},
 				},
 			]);
-			
 	
-			return bookedSlots;
+			return {
+				slots: bookedSlotsData[0]?.slots || [], 
+				totalCount: bookedSlotsData[0]?.totalCount || 0,
+			};
 		} catch (error) {
 			if (error instanceof Error) {
 				console.log(error.message);
@@ -432,6 +493,7 @@ class MentorRepository implements IMentorRepository{
 			throw new Error("An unexpected error occurred.");
 		}
 	}
+	
 
 	async getMentorData(mentorId: string): Promise<MentorVerification | undefined> {
 		try {
