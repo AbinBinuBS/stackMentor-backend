@@ -1,11 +1,11 @@
-import mongoose, { Types } from "mongoose";
+import mongoose, { ObjectId, Types } from "mongoose";
 import Mentee from "../models/menteeModel";
 import ScheduleTime, { IScheduleTime } from "../models/mentorTimeSchedule";
 import MentorVerifyModel from "../models/mentorValidate";
 import TempModel, { IMentee } from "../models/tempRegister";
 import HashedPassword from "../utils/hashedPassword";
 import { generateOTP, sendVerifyMail } from "../utils/mail";
-import BookedSlots from "../models/bookedSlots";
+import BookedSlots, { IBookedSlots } from "../models/bookedSlots";
 import { timeSheduleStatus } from "../constants/status";
 import generateRoomId from "../helper/randomIdHelprt";
 import QA, { IQa } from "../models/qaModel";
@@ -14,24 +14,13 @@ import Rating, { IRating } from "../models/ratingModel";
 import NotificationModel, { INotification } from "../models/notificationModel";
 import ICheckIsBooked, { BookedSlot, ICombinedData, IMentorShowcase, IMentorVerification, ISlot, ITransaction } from "../types/servicesInterfaces/IMentee";
 import { EnhancedCommunityMeet, EnhancedCommunityMeetCombined } from "../types/servicesInterfaces/IMentor";
+import { IMenteeRepository } from "../interfaces/mentee/IMenteeRepository";
 
-class MenteeRepository {
+class MenteeRepository implements IMenteeRepository {
 	async menteeRegister(
-		menteeData: Partial<IMentee>
+		menteeData: Partial<IMentee>,hashedPassword:string,otp:string
 	): Promise<IMentee | undefined> {
 		try {
-			if (!menteeData.password) {
-				throw new Error("Password is required");
-			}
-			if (!menteeData.email) {
-				throw new Error("Email is required");
-			}
-			const hashedPassword = await HashedPassword.hashPassword(
-				menteeData.password
-			);
-			const otp = generateOTP();
-			await sendVerifyMail(menteeData.email, otp);
-
 			const updateData = {
 				...menteeData,
 				password: hashedPassword,
@@ -52,9 +41,14 @@ class MenteeRepository {
 				options
 			);
 			return updatedMentee ?? undefined;
-		} catch (error: any) {
-			console.error(`Error in menteeRegister: ${error.message}`);
-			throw new Error(`Unable to register mentee: ${error.message}`);
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+				throw new Error(error.message)
+			} else {
+				console.log("an unknown error has been occured");
+				throw error;
+			}
 		}
 	}
 
@@ -62,20 +56,55 @@ class MenteeRepository {
 		try {
 			const menteeData = await Mentee.findOne({ email }).exec();
 			return menteeData;
-		} catch (error: any) {
-			console.error(`Error in findMenteeByEmail: ${error.message}`);
-			throw new Error(`Unable to find mentee: ${error.message}`);
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.log("an unknown error has been occured");
+			}
+			throw error;
 		}
 	}
 
-	async verifyOtp(email: string, otp: string): Promise<IMentee> {
+	async googleRegister(name:string,email:string,password:string,hashedPassword:string): Promise<IMentee> {
+		try {
+			const newMentee = new Mentee({
+				email: email,
+				name: name,
+				phone: 1234567890,
+				password: hashedPassword,
+				isActive: true,
+				isAdmin: false,
+			});
+
+			const savedMentee = await newMentee.save();
+			return savedMentee;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.log("an unknown error has been occured");
+			}
+			throw error;
+		}
+	}
+
+	async findTempModelWithEmail(email: string): Promise<IMentee | null> {
 		try {
 			const menteeData = await TempModel.findOne({ email });
-
-			if (!menteeData) {
-				throw new Error("Time has been expired");
+			return menteeData;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.log("an unknown error has been occured");
 			}
+			throw error;
+		}
+	}
 
+	async verifyOtp(menteeData: IMentee, otp: string): Promise<IMentee> {
+		try {
 			if (menteeData.otp !== parseFloat(otp)) {
 				throw new Error("Otp is not matching");
 			}
@@ -89,11 +118,21 @@ class MenteeRepository {
 			});
 
 			const savedMentee = await newMentee.save();
+			return savedMentee;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.error(error.message);
+			} else {
+				console.log("an unknown error has been occured");
+			}
+			throw error;
+		}
+	}
 
+	async removeTempData(email: string): Promise<void> {
+		try {
 			await TempModel.deleteOne({ email });
-
-			return savedMentee;
-		} catch (error: unknown) {
+		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
 			} else {
@@ -104,36 +143,9 @@ class MenteeRepository {
 	}
 
 
-	async googleRegister(name:string,email:string,password:string): Promise<IMentee> {
+	async resendOtpVerify(email: string,otp:string): Promise<IMentee | null> {
 		try {
-			const hashedPassword = await HashedPassword.hashPassword(
-				password
-			);
-			const newMentee = new Mentee({
-				email: email,
-				name: name,
-				phone: 1234567890,
-				password: hashedPassword,
-				isActive: true,
-				isAdmin: false,
-			});
-
-			const savedMentee = await newMentee.save();
-			return savedMentee;
-		} catch (error: unknown) {
-			if (error instanceof Error) {
-				console.error(error.message);
-			} else {
-				console.log("an unknown error has been occured");
-			}
-			throw error;
-		}
-	}
-
-	async resendOtpVerify(email: string): Promise<IMentee | null> {
-		try {
-			let otp = generateOTP();
-			await sendVerifyMail(email, otp);
+			
 			const resetOtp = await TempModel.findOneAndUpdate(
 				{ email },
 				{ $set: { otp: otp } }
@@ -194,7 +206,6 @@ class MenteeRepository {
 			if (menteeData.otp !== parseFloat(otp)) {
 				throw new Error("Otp is not matching");
 			}
-			await TempModel.deleteOne({ email });
 			return menteeData;
 		} catch (error: unknown) {
 			if (error instanceof Error) {
@@ -206,21 +217,12 @@ class MenteeRepository {
 		}
 	}
 
-	async reserPassword(
-		email: string,
-		password: string
+	async resetPassword(
+		mentee:IMentee,hashedPassword:string
 	): Promise<boolean | undefined> {
 		try {
-			const user = await Mentee.findOne({ email });
-
-			if (!user) {
-				return false;
-			}
-			const hashedPassword = await HashedPassword.hashPassword(password);
-
-			user.password = hashedPassword;
-			await user.save();
-
+			mentee.password = hashedPassword;
+			await mentee.save();
 			return true;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -280,12 +282,6 @@ class MenteeRepository {
 		  const objectId = new mongoose.Types.ObjectId(id);
 		  const tomorrow = new Date();
 		  tomorrow.setDate(tomorrow.getDate());
-		  const mentor = await MentorVerifyModel.find({ _id: id });
-		  if (!mentor) {
-			throw new Error("Internal server Error: Mentor not found");
-		  }
-	  
-
 		  const slotsData = await ScheduleTime.aggregate([
 			{
 			  $match: {
@@ -469,22 +465,38 @@ async getBookedSlots(userId: string): Promise<BookedSlot[]> {
     }
 }
 
-
-async getResheduleList(id: string, price: number): Promise<ISlot[]> {
+async bookedSlotsById(id:string): Promise<IBookedSlots | null> {
 	try {
-		const objectId = new mongoose.Types.ObjectId(id);
-		const bookedSlot = await BookedSlots.findById(objectId).exec();
-
-		if (!bookedSlot) {
-			throw new Error("Booked slot not found");
+		const bookedSlots = await BookedSlots.findById(id).exec();
+		return bookedSlots
+	} catch (error) {
+		if (error instanceof Error) {
+			console.error(error.message);
+		} else {
+			console.log("an unknown error has been occured");
 		}
+		throw error;
+	}
+}
 
-		const schedule = await ScheduleTime.findById(bookedSlot.slotId).exec();
-
-		if (!schedule) {
-			throw new Error("Associated schedule not found");
+async scheduledSlotForMentee(id:ObjectId): Promise<IScheduleTime | null> {
+	try {
+		const schedule = await ScheduleTime.findById(id).exec();
+		return schedule
+	} catch (error) {
+		if (error instanceof Error) {
+			console.error(error.message);
+		} else {
+			console.log("an unknown error has been occured");
 		}
+		throw error;
+	}
+}
 
+
+async getResheduleList(price:number,bookedSlot: IBookedSlots, schedule: IScheduleTime): Promise<ISlot[]> {
+	try {
+		
 		const mentorId = schedule.mentorId;
 		const tomorrow = new Date();
 		tomorrow.setDate(tomorrow.getDate() + 1);
@@ -519,52 +531,26 @@ async getResheduleList(id: string, price: number): Promise<ISlot[]> {
 	}
 }
 
-async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
-	const session = await mongoose.startSession();
-	session.startTransaction();
-  
+async rescheduleBooking(oldBookedSlot:IBookedSlots,oldSchedule:IScheduleTime,newSchedule:IScheduleTime): Promise<boolean> {
 	try {
-	  const oldBookedSlot = await BookedSlots.findById(oldId).session(session);
-	  if (!oldBookedSlot) {
-		throw new Error("Old booked slot not found");
-	  }
-  
-	  const oldSchedule = await ScheduleTime.findById(oldBookedSlot.slotId).session(session);
-	  if (!oldSchedule) {
-		throw new Error("Old schedule time not found");
-	  }
-  
-	  const newSchedule = await ScheduleTime.findById(newId).session(session);
-	  if (!newSchedule) {
-		throw new Error("New schedule time not found");
-	  }
-  
-	  if (newSchedule.isBooked) {
-		throw new Error("New schedule is already booked");
-	  }
-  
 	  oldSchedule.isBooked = false;
-	  await oldSchedule.save({ session });
+	  await oldSchedule.save();
   
 	  newSchedule.isBooked = true;
-	  await newSchedule.save({ session });
+	  await newSchedule.save();
   
 	  oldBookedSlot.slotId = newSchedule._id as Types.ObjectId
-	  await oldBookedSlot.save({ session });
+	  await oldBookedSlot.save();
   
-	  await session.commitTransaction();
 	  return true;
 	} catch (error) {
-	  await session.abortTransaction();
 	  if (error instanceof Error) {
 		console.error("Error:", error.message);
 	  } else {
 		console.error("An unknown error occurred");
 	  }
 	  throw error;
-	} finally {
-	  session.endSession();
-	}
+	} 
   }
 	  
 	  
@@ -586,22 +572,6 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 				console.log("An unknown error occurred");
 			}
 			throw error;
-		}
-	}
-
-
-	async getMenteeDetails(menteeId: string): Promise< IMentee> {
-		try {
-			const menteeData = await Mentee.findById({_id:menteeId})
-			if(menteeData){
-				return menteeData as IMentee
-			}
-			throw new Error("An unexpected error occurred.")
-		} catch (error) {
-			if (error instanceof Error) {
-				console.log(error.message);
-			}
-			throw new Error("An unexpected error occurred.");
 		}
 	}
 
@@ -649,11 +619,9 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 
 	  async changePassword(menteeId: string, newPassword: string): Promise<boolean> {
 		try {
-		  const hashedPassword = await HashedPassword.hashPassword(newPassword);
-	  
 		  const updatePassword = await Mentee.findByIdAndUpdate(
 			menteeId, 
-			{ password: hashedPassword }, 
+			{ password: newPassword }, 
 			{ new: true } 
 		  );
 		  if (!updatePassword) {
@@ -794,23 +762,10 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 	}
 	
 	
-	async cancelSlot(slotId: string): Promise<void> {
-		const session = await mongoose.startSession();
-		session.startTransaction();
-	
+	async cancelSlot(bookedSlot:IBookedSlots,scheduleTime:IScheduleTime,mentee:IMentee): Promise<void> {
 		try {
-			const bookedSlot = await BookedSlots.findById(slotId).session(session);
-			if (!bookedSlot) {
-				throw new Error('Booked slot not found');
-			}
-	
-			const scheduleTime = await ScheduleTime.findById(bookedSlot.slotId).session(session);
-			if (!scheduleTime) {
-				throw new Error('Related schedule not found');
-			}
 	
 			if (bookedSlot.userId) {
-				const mentee = await Mentee.findById(bookedSlot.userId).session(session);
 				if (!mentee) {
 					throw new Error('Mentee not found');
 				}
@@ -831,7 +786,7 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 	
 				mentee.walletHistory.push(transaction);
 	
-				await mentee.save({ session });
+				await mentee.save();
 			}
 	
 			const newScheduleTime = new ScheduleTime({
@@ -843,20 +798,15 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 				isBooked: false,
 			});
 	
-			await newScheduleTime.save({ session });
+			await newScheduleTime.save();
 	
 			bookedSlot.status = 'cancelled';
-			await bookedSlot.save({ session });
+			await bookedSlot.save();
 	
 			scheduleTime.isBooked = false;
-			await scheduleTime.save({ session });
+			await scheduleTime.save();
 	
-			await session.commitTransaction();
-			session.endSession();
-		} catch (error) {
-			await session.abortTransaction();
-			session.endSession();
-	
+		} catch (error) {	
 			if (error instanceof Error) {
 				console.error('Error:', error.message);
 			} else {
@@ -883,8 +833,9 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 		}
 	  }
 
-	  async getAllQuestions(page: number, search: string, limit: number): Promise<{ questions: IQa[]; total: number } > {
-		try {
+
+	  async countAllQa(search: string):Promise<number>{
+		try{
 			const query = search
 				? {
 					$or: [
@@ -895,15 +846,36 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 				}
 				: {};
 	
-			const total = await QA.countDocuments(query);
-	
+			return await QA.countDocuments(query);
+		}catch(error){
+			if (error instanceof Error) {
+				console.error('Error:', error.message);
+			  } else {
+				console.log('An unknown error occurred');
+			  }
+			  throw error;
+		}
+	  }
+
+	  async getAllQuestions(page: number, search: string, limit: number): Promise< IQa[] > {
+		try {
+			const query = search
+				? {
+					$or: [
+						{ title: { $regex: search, $options: 'i' } }, 
+						{ 'menteeId.name': { $regex: search, $options: 'i' } },
+						{ 'mentorId.name': { $regex: search, $options: 'i' } }
+					]
+				}
+				: {};
+		
 			const questions: IQa[] = await QA.find(query)
 				.populate('menteeId', 'name')
 				.populate('mentorId', 'name')
 				.skip((page - 1) * limit)
 				.limit(limit);
 	
-			return { questions, total };
+			return questions
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error('Error:', error.message);
@@ -998,7 +970,6 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 			alreadyRated.ratingValue = rating;
 			alreadyRated.comment = comment;
 			await alreadyRated.save();
-			console.log('Rating updated successfully.');
 		  } else {
 			const createNewRating = new Rating({
 			  ratingValue: rating,
@@ -1007,7 +978,6 @@ async rescheduleBooking(oldId: string, newId: string): Promise<boolean> {
 			  mentor: mentorId,
 			});
 			await createNewRating.save();
-			console.log('Rating created successfully.');
 		  }
 		} catch (error) {
 		  if (error instanceof Error) {

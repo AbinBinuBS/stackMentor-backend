@@ -1,34 +1,81 @@
-import MenteeRepository from "../repositories/menteeRepository";
-import Mentee, { IMentee } from "../models/menteeModel";
+import { IMentee } from "../models/menteeModel";
 import HashedPassword from "../utils/hashedPassword";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "../config/middilewareConfig";
 import { IQa } from "../models/qaModel";
 import { INotification } from "../models/notificationModel";
-import { ObjectId } from "mongoose";
+import mongoose, { ObjectId } from "mongoose";
 import ICheckIsBooked, { BookedSlot, ICombinedData, IMenteeLogin, IMentorShowcase, IOtpVerify, ISlot, TokenResponce, TokenwithCridential } from "../types/servicesInterfaces/IMentee";
 import { userPayload } from "../types/commonInterfaces/tokenInterfaces";
 import { EnhancedCommunityMeetCombined } from "../types/servicesInterfaces/IMentor";
+import { IMenteeRepository } from "../interfaces/mentee/IMenteeRepository";
+import { IMenteeService } from "../interfaces/mentee/IMenteeService";
+import { generateOTP, sendVerifyMail } from "../utils/mail";
 
-class MenteeService {
-  constructor(private menteeRepository: MenteeRepository) {}
+class MenteeService implements IMenteeService{
+  constructor(private menteeRepository: IMenteeRepository) {}
 
   async createMentee(
     menteeData: Partial<IMentee>
   ): Promise<IMentee | undefined> {
-    if (!menteeData.email) {
-      throw new Error("Email is required to create a mentee.");
+    try{
+      if (!menteeData.password) {
+				throw new Error("Password is required");
+			}
+			if (!menteeData.email) {
+				throw new Error("Email is required");
+			}
+			const hashedPassword = await HashedPassword.hashPassword(
+				menteeData.password
+			);
+  
+      const existingMentee = await this.menteeRepository.findMenteeByEmail(
+        menteeData.email
+      );
+      if (existingMentee) {
+        throw new Error("Mentee already exists.");
+      }
+      const otp = generateOTP();
+      await sendVerifyMail(menteeData.email, otp);
+      const userCreated = await this.menteeRepository.menteeRegister(menteeData,hashedPassword,otp);
+      return userCreated;
+    }catch(error){
+      if (error instanceof Error) {
+        console.error(error.message);
+      } else {
+        console.error("An unknown error occurred");
+      }
+      throw error;
     }
+  }
 
-    const existingMentee = await this.menteeRepository.findMenteeByEmail(
-      menteeData.email
-    );
-    if (existingMentee) {
-      throw new Error("Mentee already exists.");
+  async googleRegister(name:string,email:string,password:string): Promise<TokenResponce | null> {
+    try {
+      const hashedPassword = await HashedPassword.hashPassword(
+				password
+			);
+      const mentorData = await this.menteeRepository.googleRegister(name,email,password,hashedPassword);
+      const userPayload = {
+        id: mentorData.id,
+        name: mentorData.name,
+        phone: mentorData.phone,
+        email: mentorData.email,
+        isActive: mentorData.isActive,
+        isAdmin: mentorData.isAdmin,
+      };
+      const accessToken = await generateAccessToken(userPayload);
+      const refreshToken = await generateRefreshToken(userPayload);
+      return { accessToken, refreshToken };
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(error.message);
+        return null;
+      } else {
+        console.error("Error verifying OTP:", error);
+        return null;
+      }
     }
-    const userCreated = await this.menteeRepository.menteeRegister(menteeData);
-    return userCreated;
   }
 
   async menteeLogin(menteeData: Partial<IMenteeLogin>): Promise<TokenResponce | null | undefined> {
@@ -72,7 +119,7 @@ class MenteeService {
       } else {
         throw new Error("Password is missing for the user");
       }
-    } catch (error: unknown) {
+    } catch (error) {
       if (error instanceof Error) {
         console.error(error.message);
       } else {
@@ -108,7 +155,7 @@ class MenteeService {
       let accessToken = generateAccessToken(userPayload)
       let refreshToken = generateRefreshToken(userPayload)
       return {emailExists: true,accessToken,refreshToken,message: "Email is registered"}            
-    } catch (error: unknown) {
+    } catch (error) {
       if (error instanceof Error) {
         console.error(error.message);
       } else {
@@ -119,45 +166,25 @@ class MenteeService {
   }
 
 
-  async googleRegister(name:string,email:string,password:string): Promise<TokenResponce | null> {
-    try {
-      
-      const mentorData = await this.menteeRepository.googleRegister(name,email,password);
-      const userPayload = {
-        id: mentorData.id,
-        name: mentorData.name,
-        phone: mentorData.phone,
-        email: mentorData.email,
-        isActive: mentorData.isActive,
-        isAdmin: mentorData.isAdmin,
-      };
-      const accessToken = await generateAccessToken(userPayload);
-      const refreshToken = await generateRefreshToken(userPayload);
-      return { accessToken, refreshToken };
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error(error.message);
-        return null;
-      } else {
-        console.error("Error verifying OTP:", error);
-        return null;
-      }
-    }
-  }
 
   async verifyOtp(otpData: Partial<IOtpVerify>): Promise<TokenResponce | null> {
     try {
       if (!otpData.email || !otpData.otp) {
         throw new Error("Email or OTP is missing");
       }
+      const menteeData = await this.menteeRepository.findTempModelWithEmail(otpData.email)
+      if (!menteeData) {
+				throw new Error("Time has been expired");
+			}
       const isOtpVerify = await this.menteeRepository.verifyOtp(
-        otpData.email,
+        menteeData,
         otpData.otp
       );
 
       if (!isOtpVerify) {
         throw new Error("OTP verification failed");
       }
+      await this.menteeRepository.removeTempData(otpData.email)
       const userPayload = {
         id: isOtpVerify.id,
         name: isOtpVerify.name,
@@ -169,7 +196,7 @@ class MenteeService {
       const accessToken = await generateAccessToken(userPayload);
       const refreshToken = await generateRefreshToken(userPayload);
       return { accessToken, refreshToken };
-    } catch (error: unknown) {
+    } catch (error) {
       if (error instanceof Error) {
         console.error(error.message);
         return null;
@@ -182,14 +209,14 @@ class MenteeService {
 
   async resendOtp(email: string): Promise<IMentee | undefined> {
     try {
-      const resendOtpVerify = await this.menteeRepository.resendOtpVerify(
-        email
-      );
+      let otp = generateOTP();
+			await sendVerifyMail(email, otp);
+      const resendOtpVerify = await this.menteeRepository.resendOtpVerify(email,otp);
       if (!resendOtpVerify) {
         throw new Error("Time has been Expired Try again.");
       }
       return resendOtpVerify;
-    } catch (error: unknown) {
+    } catch (error) {
       if (error instanceof Error) {
         throw error;
       } else {
@@ -200,12 +227,11 @@ class MenteeService {
 
   async resetWithEmail(email: string): Promise<IMentee | undefined> {
     try {
-        const emailData = await this.menteeRepository.findMenteeByEmail(email);
-        if (!emailData) {
+        const mentorData = await this.menteeRepository.findMenteeByEmail(email);
+        if (!mentorData) {
             throw new Error("Email does not exist.");
         }
-
-        const savedEmailData = await this.menteeRepository.forgotPasswordWithEmail(emailData);
+        const savedEmailData = await this.menteeRepository.forgotPasswordWithEmail(mentorData);
         return savedEmailData
     } catch (error) {
         console.error("Error in resetWithEmail:", error);
@@ -226,11 +252,12 @@ class MenteeService {
       if (!isOtpVerify) {
         throw new Error("OTP verification failed");
       }
+      await this.menteeRepository.findTempModelWithEmail(otpData.email)
       return isOtpVerify
     }catch(error){
       if (error instanceof Error) {
         console.error(error.message);
-        throw new Error("Unable to verify otp at this moment")
+        throw new Error(error.message)
       } else {
         console.error("Error verifying OTP:", error);
         throw new Error("Unable to verify otp at this moment")
@@ -240,7 +267,12 @@ class MenteeService {
 
   async resetPassword(email:string,password:string): Promise<Boolean | undefined >{
     try{
-      const responseData = await this.menteeRepository.reserPassword(email,password)
+      const mentee = await this.menteeRepository.findMenteeByEmail(email)
+      if (!mentee) {
+        return false
+      }
+      const hashedPassword = await HashedPassword.hashPassword(password);
+      const responseData = await this.menteeRepository.resetPassword(mentee,hashedPassword)
       if(responseData){
         return true
       }else{
@@ -327,7 +359,16 @@ class MenteeService {
 
   async getResheduleList(id:string,price:number): Promise<ISlot[] >{
     try{
-     const slotsData:ISlot[] = await this.menteeRepository.getResheduleList(id,price)
+      const bookedSlots = await this.menteeRepository.bookedSlotsById(id)
+      if (!bookedSlots) {
+        throw new Error("Booked slot not found");
+      }
+      const objectId = new mongoose.Types.ObjectId(bookedSlots.slotId);
+      const scheduledTime = await this.menteeRepository.scheduledSlotForMentee(objectId as unknown as mongoose.Schema.Types.ObjectId);
+      if (!scheduledTime) {
+        throw new Error("Associated schedule not found");
+      }
+     const slotsData:ISlot[] = await this.menteeRepository.getResheduleList(price,bookedSlots,scheduledTime)
      return slotsData
     }catch(error){
       if (error instanceof Error) {
@@ -343,7 +384,29 @@ class MenteeService {
   
   async rescheduleBooking(oldId:string,newId:string): Promise<void >{
     try{
-     const rescheduleSlot = await this.menteeRepository.rescheduleBooking(oldId,newId)
+      const oldBookedSlot = await this.menteeRepository.bookedSlotsById(oldId)
+	  if (!oldBookedSlot) {
+		throw new Error("Old booked slot not found");
+	  }
+  
+	  const oldSchedule = await this.menteeRepository.scheduledSlotForMentee(
+      oldBookedSlot.slotId as unknown as mongoose.Schema.Types.ObjectId
+    );
+    
+	  if (!oldSchedule) {
+		throw new Error("Old schedule time not found");
+	  }
+  
+	  const newSchedule = await this.menteeRepository.scheduledSlotForMentee(newId as unknown as mongoose.Schema.Types.ObjectId)
+	  if (!newSchedule) {
+		throw new Error("New schedule time not found");
+	  }
+  
+	  if (newSchedule.isBooked) {
+		throw new Error("New schedule is already booked");
+	  }
+
+     const rescheduleSlot = await this.menteeRepository.rescheduleBooking(oldBookedSlot,oldSchedule,newSchedule)
      
     }catch(error){
       if (error instanceof Error) {
@@ -377,10 +440,10 @@ class MenteeService {
   }
 
 
-  async getMenteeDetails(menteeId:string): Promise<IMentee> {
+  async getMenteeDetails(menteeId:string): Promise<IMentee | undefined> {
 		try {
-			const mentorData = await this.menteeRepository.getMenteeDetails(menteeId)
-			return mentorData as IMentee
+			const mentorData = await this.menteeRepository.findMenteeById(menteeId)
+			return mentorData 
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -393,7 +456,7 @@ class MenteeService {
 
   async editProfile(name: string, menteeId: string): Promise<void> {
 		try {
-			const menteeDataUpdate = await this.menteeRepository.editProfile(name,menteeId);
+			await this.menteeRepository.editProfile(name,menteeId);
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -442,7 +505,8 @@ class MenteeService {
 					menteeData.password
 				)
 				if(isPasswordValid){
-					const changePassword = await this.menteeRepository.changePassword(menteeId,newPassword)
+          const hashedPassword = await HashedPassword.hashPassword(newPassword);
+					const changePassword = await this.menteeRepository.changePassword(menteeId,hashedPassword)
 					if(changePassword){
 						return changePassword
 					}else{
@@ -503,7 +567,7 @@ class MenteeService {
 
   async walletPayment(menteeId:string,slotId:string): Promise<boolean>{
     try{
-      const bookSlot = await this.menteeRepository.walletPayment(menteeId,slotId)
+      await this.menteeRepository.walletPayment(menteeId,slotId)
       return true
     }catch(error){
       if (error instanceof Error) {
@@ -518,7 +582,20 @@ class MenteeService {
 
   async cancelSlot(slotId:string): Promise< void>{
     try{
-      const slotData = await this.menteeRepository.cancelSlot(slotId)
+      const bookedSlot = await this.menteeRepository.bookedSlotsById(slotId)
+			if (!bookedSlot) {
+				throw new Error('Booked slot not found');
+			}
+	
+			const scheduleTime = await this.menteeRepository.scheduledSlotForMentee(bookedSlot.slotId as unknown as mongoose.Schema.Types.ObjectId)
+			if (!scheduleTime) {
+				throw new Error('Related schedule not found');
+			}
+      const mentee = await this.menteeRepository.findMenteeById(bookedSlot.userId as unknown as string)
+      if (!mentee) {
+				throw new Error(' mentee not found');
+			}
+      const slotData = await this.menteeRepository.cancelSlot(bookedSlot,scheduleTime,mentee)
       return slotData
     }catch(error){
       if (error instanceof Error) {
@@ -546,9 +623,11 @@ class MenteeService {
     }
   }
 
-  async getAllQuestions( page:number,search:string,limit:number): Promise<{ questions: IQa[]; total: number }>{
+  async getAllQuestions( page:number,search:string): Promise<{ questions: IQa[]; total: number }>{
     try{
-      const { questions, total } = await this.menteeRepository.getAllQuestions( page,search,limit)
+      const limit =  5; 
+      const total = await this.menteeRepository.countAllQa(search)
+      const questions = await this.menteeRepository.getAllQuestions( page,search,limit)
       return { questions, total }
     }catch(error){
       if (error instanceof Error) {

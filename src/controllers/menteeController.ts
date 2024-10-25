@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
-import MenteeService from '../services/menteeService';
 import stripe from '../config/stripe';
+import { IMenteeService } from '../interfaces/mentee/IMenteeService';
 
 class MenteeController {
-    constructor(private menteeService: MenteeService) {}
+    constructor(private menteeService: IMenteeService) {}
 
     async menteeRegister(req: Request, res: Response): Promise<void> {
         try {
@@ -86,10 +86,6 @@ class MenteeController {
     async menteeOtp(req: Request, res: Response): Promise<void> {
       try {
         const otpData = req.body;
-        if (!otpData.email || !otpData.otp) {
-          res.status(400).json({ message: 'Email and OTP are required' });
-          return;
-        }
         const otpVerified = await this.menteeService.verifyOtp(otpData);
         if (otpVerified) {
           res.status(200).json({ message: 'OTP verified successfully', accessToken:otpVerified.accessToken,refreshToken:otpVerified.refreshToken });
@@ -117,11 +113,13 @@ class MenteeController {
             if(verifyResentOtp){
                 res.status(200).json({message:"Resend otp is Successfull"})
             }
-        }catch(error:unknown){
+        }catch(error){
             if(error instanceof Error){
                 if(error.message == 'Time has been Expired Try again.'){
                     res.status(500).json({message:"Time has been Expired Try again."})
                 }
+            }else{
+                res.status(500).json({message:"Internal Server Error"})
             }
         }
     }
@@ -129,21 +127,19 @@ class MenteeController {
     async resetWithEmail(req: Request, res: Response): Promise<void> {
         try {
             const email = req.body.email;
-            if (!email) {
-                res.status(400).json({ message: "Email is required." });
-                return;
-            }
             const verifyEmail = await this.menteeService.resetWithEmail(email);
             if(verifyEmail){
                 res.status(200).json({ message: "Password reset link sent to your email." });
             }
-        } catch (error : unknown) {
+        } catch (error) {
             if(error instanceof Error){
                 if(error.message == 'Email does not exist.'){
                     res.status(400).json({message:'Email does not exist.'})
                 }else{
                     res.status(500).json({ message: "An error occurred while processing your request." });
                 }
+            }else{
+                res.status(500).json({message:"Internal Server Error"})
             }
         }
 
@@ -153,23 +149,23 @@ class MenteeController {
     async resetPassswordOtp(req:Request,res:Response):Promise<void>{
         try{
             const otpData = req.body;
-            if (!otpData.email || !otpData.otp) {
-            res.status(400).json({ message: 'Email and OTP are required' });
-            return;
-            }
             const otpVerified = await this.menteeService.forgetPasswordVerifyOtp(otpData);
             if (otpVerified) {
                 res.status(200).json({ message: 'OTP verified successfully',email:otpVerified.email});
             } else {
                 res.status(401).json({ message: 'Invalid OTP ' });
             }
-        }catch(error:unknown){
+        }catch(error){
             if(error instanceof Error){
                 if(error.message == 'Email or OTP is missing'){
                     res.status(401).json({message:'OTP is missing.'})
                 }else if(error.message == 'OTP verification failed'){
                     res.status(401).json({ message: 'Invalid OTP ' });
+                }else if(error.message == 'Otp is not matching'){
+                    res.status(401).json({ message: 'Otp is not matching' });
                 }
+            }else{
+                res.status(500).json({message:"Internal Server Error"})
             }
         }
     }
@@ -185,22 +181,38 @@ class MenteeController {
                 res.status(400).json({message:"Failled"})
             }
         }catch(error){
-            console.log(error);
-            res.status(500).json({ message: "An error occurred while processing your request." });
+            if (error instanceof Error) {
+                console.error(error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
         }
     }
 
 
+
+
+
+// ......................................................................................................................
+
+
+
     async getMentorData(req:Request,res:Response): Promise<void>{
         try{
-            
             const level = req.query.level as string
             const stack = req.query.stack as string
             const mentorsData = await this.menteeService.getMentors(level,stack)
             res.status(200).json({mentorData:mentorsData})
         }catch(error){
-            console.log(error);
-            res.status(500).json({ message: "An error occurred while processing your request." });
+            if (error instanceof Error) {
+                console.error(error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
         }
     }
 
@@ -210,8 +222,13 @@ class MenteeController {
             const slotDatas = await this.menteeService.getMentorSlots(id)
             res.status(200).json({message:"Success" ,slotsData:slotDatas.slots , mentorData:slotDatas.mentorVerification,ratings:slotDatas.ratings})
         }catch(error){
-            console.log(error);
-            res.status(500).json({ message: "An error occurred while processing your request." });
+            if (error instanceof Error) {
+                console.error(error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
         }
     }
 
@@ -222,8 +239,13 @@ class MenteeController {
             const bookedSlot = await this.menteeService.getBookedSlots(accessToken)
             res.status(200).json({message:"Success",bookedSlot})
         }catch(error){
-            console.log(error);
-            res.status(500).json({ message: "An error occurred while processing your request." });
+            if (error instanceof Error) {
+                console.error(error.message);
+                res.status(500).json({ message: error.message });
+            } else {
+                console.error('Unknown error:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
         }
     }
 
@@ -248,6 +270,29 @@ class MenteeController {
         }catch(error){
             console.log(error);
             res.status(500).json({ message: "An error occurred while processing your request." });
+        }
+    }
+
+
+    async checkIsBooked(req:Request,res:Response): Promise<void>{
+        try{
+            const bookingData = req.body
+            const isBooked = await this.menteeService.checkIsBooked(bookingData)
+            if(isBooked == false){
+                res.status(200).json({message:"Success"})
+            }else{
+                res.status(409).json({message:" This slot is already booked."})
+            }
+            
+        }catch(error){
+            if(error instanceof Error){
+                if(error.message == " This slot is already booked."){
+                    res.status(409).json({message:" This slot is already booked."})
+                }else{
+                    console.log(error);
+                    res.status(500).json({ message: "An error occurred while processing your request." });
+                }
+            }
         }
     }
 
@@ -326,10 +371,8 @@ class MenteeController {
     async getAllQuestions(req:Request,res:Response):Promise<void>{
         try{
             const page = parseInt(req.query.page as string) || 1; 
-		    const limit =  5; 
             const search = req.query.search as string || ""; 
-            console.log(req.query)
-            const  { questions, total }  = await this.menteeService.getAllQuestions( page,search,limit)
+            const  { questions, total }  = await this.menteeService.getAllQuestions( page,search)
             res.status(200).json({message:"Success",questions,totalPages:total })
         }catch(error){
             if (error instanceof Error) {
@@ -373,27 +416,7 @@ class MenteeController {
 
 
 
-    async checkIsBooked(req:Request,res:Response): Promise<void>{
-        try{
-            const bookingData = req.body
-            const isBooked = await this.menteeService.checkIsBooked(bookingData)
-            if(isBooked == false){
-                res.status(200).json({message:"Success"})
-            }else{
-                res.status(409).json({message:" This slot is already booked."})
-            }
-            
-        }catch(error){
-            if(error instanceof Error){
-                if(error.message == " This slot is already booked."){
-                    res.status(409).json({message:" This slot is already booked."})
-                }else{
-                    console.log(error);
-                    res.status(500).json({ message: "An error occurred while processing your request." });
-                }
-            }
-        }
-    }
+    
 
 
     async getMenteeDetails(req:Request,res:Response):Promise<void>{
@@ -416,7 +439,7 @@ class MenteeController {
         try {
             const { name } = req.body;
             const menteeId = (req as any).mentee.id;
-            const menteeResponse = await this.menteeService.editProfile(name, menteeId);
+            await this.menteeService.editProfile(name, menteeId);
             res.status(200).json({message:"Success"});
         } catch (error) {
             if (error instanceof Error) {
@@ -549,7 +572,7 @@ class MenteeController {
             const menteeId = (req as any).mentee.id
             const formData = req.body.values
             const mentorId = req.body.slotId
-            const review = await this.menteeService.addReview(menteeId,formData.rating,formData.comment,mentorId)
+            await this.menteeService.addReview(menteeId,formData.rating,formData.comment,mentorId)
             res.status(200).json({message:"Success"})
         }catch(error){
             if (error instanceof Error) {
@@ -582,7 +605,7 @@ class MenteeController {
         try{
             const menteeId = (req as any).mentee.id
             const chatId = req.params.id as string
-            const readChat = await this.menteeService.markReadChat(menteeId,chatId)
+            await this.menteeService.markReadChat(menteeId,chatId)
             res.status(200).json({message:"Success"})
         }catch(error){
             if (error instanceof Error) {

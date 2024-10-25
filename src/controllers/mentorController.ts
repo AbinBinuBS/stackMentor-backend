@@ -662,18 +662,27 @@ class MentorController{
             }
         }
     }
-    async getMentorRating(req:Request,res:Response):Promise<void>{
-        try{
-            const mentorId = (req as any).mentor.id
-            const getRatings = await this.mentorService.getMentorRating(mentorId)
-            console.log("11111111111111",getRatings)
-            res.status(200).json({message:"Success",ratings:getRatings})
-        }catch(error){
+    async getMentorRating(req: Request, res: Response): Promise<void> {
+        try {
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 5;
+            const mentorId = (req as any).mentor.id;
+    
+            const { ratings, totalCount, ratingCounts, totalPages } = await this.mentorService.getMentorRating(mentorId, page, limit);
+    
+            res.status(200).json({
+                message: "Success",
+                ratings,
+                totalPages,
+                totalCount,
+                ratingCounts
+            });
+        } catch (error) {
             if (error instanceof Error) {
-                console.error( error.message);
+                console.error(error.message);
                 res.status(500).json({ message: error.message });
             } else {
-                console.error('Unknown error during  :', error);
+                console.error('Unknown error during :', error);
                 res.status(500).json({ message: 'Internal server error' });
             }
         }

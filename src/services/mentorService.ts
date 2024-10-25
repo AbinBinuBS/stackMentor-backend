@@ -14,7 +14,7 @@ import { IRating } from "../models/ratingModel";
 import { INotification } from "../models/notificationModel";
 import { IOtpVerify, TokenResponce } from "../types/servicesInterfaces/IMentee";
 import { mentorPayload } from "../types/commonInterfaces/tokenInterfaces";
-import { EnhancedCommunityMeet, ICOmmunityFormData, IMentorLogin, ISlotMentor, ISlotsList, MentorVerification, MentorVerifyData } from "../types/servicesInterfaces/IMentor";
+import { EnhancedCommunityMeet, ICOmmunityFormData, IMentorLogin, ISlotMentor, ISlotsList, MentorVerification, MentorVerifyData, RatingResponse } from "../types/servicesInterfaces/IMentor";
 
 dotenv.config();
 
@@ -673,17 +673,38 @@ class MentorService {
 		}
 	}
 
-	async getMentorRating(mentorId:string): Promise<IRating[] | null> {
+	async getMentorRating(
+		mentorId: string,
+		page: number,
+		limit: number
+	  ): Promise<RatingResponse> {
 		try {
-			const getRatings = await this.mentorRepository.getMentorRating(mentorId);
-			return getRatings
+		  const skip = (page - 1) * limit;
+		  
+		  // Get all data from repository in a single call
+		  const { ratings, totalCount, ratingCounts } = await this.mentorRepository.getMentorRating(
+			mentorId, 
+			page, 
+			limit, 
+			skip
+		  );
+		  
+		  // Calculate total pages
+		  const totalPages = Math.ceil(totalCount / limit);
+	
+		  return {
+			ratings,
+			totalCount,
+			ratingCounts,
+			totalPages
+		  };
 		} catch (error) {
-			if (error instanceof Error) {
-				console.error(error.message);
-			}
-			throw new Error("An unexpected error occurred.");
+		  if (error instanceof Error) {
+			console.error(error.message);
+		  }
+		  throw new Error("An unexpected error occurred.");
 		}
-	}
+	  }
 
 	async getNotifications(mentorId:string): Promise<INotification[]> {
 		try {
