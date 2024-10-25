@@ -1,10 +1,13 @@
+import { IMessageRepository } from "../interfaces/message/IMessageRepository";
+import { IMessageService } from "../interfaces/message/IMessageService";
 import Chat from "../models/chatModel";
 import Mentee from "../models/menteeModel";
 import { IMessage } from "../models/messageModel";
 import MessageRepository from "../repositories/messageRepository";
+import { IMessageCombined } from "../types/servicesInterfaces/IMentor";
 
-class MessageService {
-    constructor(private messageRepository: MessageRepository) {}
+class MessageService implements IMessageService {
+    constructor(private messageRepository: IMessageRepository) {}
 
     async getAllMessage(chatId: string): Promise<IMessage[]> {
         try {
@@ -15,7 +18,7 @@ class MessageService {
         }
     }
 
-    async sendMessage(content: string, chatId: string, senderId: string) {
+    async sendMessage(content: string, chatId: string, senderId: string):Promise<IMessageCombined> {
         const menteeData = await Mentee.findById({_id:senderId})
         
         const chatData  = await Chat.findById({_id:chatId})
@@ -48,7 +51,6 @@ class MessageService {
         const populatedMessage = await this.messageRepository.findMessageById(savedMessage._id);
         
         await Chat.findByIdAndUpdate(chatId, { latestMessage: savedMessage._id });
-        
         return populatedMessage;
     }
 

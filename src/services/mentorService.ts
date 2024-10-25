@@ -1,6 +1,5 @@
 
 import { IMentor } from "../models/mentorModel";
-import MentorRepository from "../repositories/mentorRepository";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
 import HashedPassword from "../utils/hashedPassword";
 import { ObjectId, Types } from "mongoose";
@@ -15,29 +14,53 @@ import { INotification } from "../models/notificationModel";
 import { IOtpVerify, TokenResponce } from "../types/servicesInterfaces/IMentee";
 import { mentorPayload } from "../types/commonInterfaces/tokenInterfaces";
 import { EnhancedCommunityMeet, ICOmmunityFormData, IMentorLogin, ISlotMentor, ISlotsList, MentorVerification, MentorVerifyData, RatingResponse } from "../types/servicesInterfaces/IMentor";
+import { IMentorService } from "../interfaces/mentor/IMentorService";
+import { IMentorRepository } from "../interfaces/mentor/IMentorRepository";
+import { generateOTP, sendVerifyMail } from "../utils/mail";
+import CommunityRoomId from "../helper/communityMeetHelper";
 
 dotenv.config();
 
-class MentorService {
-	constructor(private mentorRepository: MentorRepository) {}
+class MentorService implements IMentorService {
+	constructor(private mentorRepository: IMentorRepository) {}
 
 	async createMentor(
 		mentorData: Partial<IMentor>
 	): Promise<IMentor | undefined> {
-		if (!mentorData.email) {
-			throw new Error("Email is required to create a mentor.");
-		}
+		try{
+			if (!mentorData.email) {
+				throw new Error("Email is required to create a mentor.");
+			}
+	
+			const existingMentor = await this.mentorRepository.findMentorByEmail(
+				mentorData.email
+			);
+			if (existingMentor) {
+				throw new Error("Mentor already exists.");
+			}
 
-		const existingMentor = await this.mentorRepository.findMentorByEmail(
-			mentorData.email
-		);
-		if (existingMentor) {
-			throw new Error("Mentor already exists.");
+			if (!mentorData.password) {
+				throw new Error("Password is required");
+			}
+			if (!mentorData.email) {
+				throw new Error("Email is required");
+			}
+			const hashedPassword = await HashedPassword.hashPassword(
+				mentorData.password
+			);
+			const otp = generateOTP();
+			await sendVerifyMail(mentorData.email, otp);
+			const mentorCreated = await this.mentorRepository.mentorRegister(mentorData,hashedPassword,otp);
+			return mentorCreated;
+		}catch(error){
+			if (error instanceof Error) {
+				console.error(error.message);
+				throw new Error(error.message)
+			} else {
+				console.error("An unknown error occurred");
+			}
+			throw error;
 		}
-		const mentorCreated = await this.mentorRepository.mentorRegister(
-			mentorData
-		);
-		return mentorCreated;
 	}
 
 	async verifyOtp(otpData: Partial<IOtpVerify>): Promise<TokenResponce | null> {
@@ -45,11 +68,19 @@ class MentorService {
 			if (!otpData.email || !otpData.otp) {
 				throw new Error("Email or OTP is missing");
 			}
-			const isOtpVerify = await this.mentorRepository.verifyOtp(
-				otpData.email,
-				otpData.otp
-			);
+			const mentorData = await this.mentorRepository.findMentorTempByEmail(otpData.email)
 
+			if (!mentorData) {
+				throw new Error("Time has been expired");
+			}
+
+			if (mentorData.otp !== parseFloat(otpData.otp)) {
+				throw new Error("Otp is not matching");
+			}
+			const isOtpVerify = await this.mentorRepository.verifyOtp(
+				mentorData
+			);
+			await this.mentorRepository.removeTempMentor(otpData.email)
 			const mentorPayload: mentorPayload = {
 				id: isOtpVerify.id,
 				name: isOtpVerify.name,
@@ -60,7 +91,7 @@ class MentorService {
 			const accessToken = await generateAccessToken(mentorPayload);
 			const refreshToken = await generateRefreshToken(mentorPayload);
 			return { accessToken, refreshToken };
-		} catch (error: unknown) {
+		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
 				return null;
@@ -73,8 +104,11 @@ class MentorService {
 
 	async resendOtp(email: string): Promise<IMentor | undefined> {
 		try {
+			let otp = generateOTP();
+			await sendVerifyMail(email, otp);
 			const resendOtpVerify = await this.mentorRepository.resendOtpVerify(
-				email
+				email,
+				otp
 			);
 			if (!resendOtpVerify) {
 				throw new Error("Time has been Expired Try again.");
@@ -143,8 +177,9 @@ class MentorService {
 			if (!emailData) {
 				throw new Error("Email does not exist.");
 			}
-	
-			const savedEmailData = await this.mentorRepository.forgotPasswordWithEmail(emailData);
+			const otp = generateOTP();
+			await sendVerifyMail(emailData.email, otp);
+			const savedEmailData = await this.mentorRepository.forgotPasswordWithEmail(emailData,otp);
 			return savedEmailData
 		} catch (error) {
 			console.error("Error in resetWithEmail:", error);
@@ -161,7 +196,7 @@ class MentorService {
 			otpData.email,
 			otpData.otp
 		  );
-	
+		  await this.mentorRepository.removeTempMentor(otpData.email)
 		  if (!isOtpVerify) {
 			throw new Error("OTP verification failed");
 		  }
@@ -179,7 +214,12 @@ class MentorService {
 
 	  async resetPassword(email:string,password:string): Promise<Boolean | undefined >{
 		try{
-		  const responseData = await this.mentorRepository.reserPassword(email,password)
+			const mentor = await this.mentorRepository.findMentorByEmail(email);
+			if (!mentor) {
+				return false;
+			}
+			const hashedPassword = await HashedPassword.hashPassword(password);
+		  const responseData = await this.mentorRepository.resetPassword(mentor,hashedPassword)
 		  if(responseData){
 			return true
 		  }else{
@@ -251,7 +291,7 @@ class MentorService {
 				process.env.REFRESH_TOKEN_PRIVATE_KEY as string
 			) as JwtPayload;
 			const { id } = decoded;
-			const isMentor = await this.mentorRepository.findMentorBtId(id);
+			const isMentor = await this.mentorRepository.findMentorById(id);
 			if (!isMentor) {
 				throw new Error("Mentor not found");
 			}
@@ -273,137 +313,143 @@ class MentorService {
 	}
 
 	async scheduleNormalTime(scheduleData: IScheduleTime, mentorId: string): Promise<IScheduleTime[]> {
-        const { startTime, endTime, price, date } = scheduleData;
+        try{
+			const { startTime, endTime, price, date } = scheduleData;
         
-        if (!date) {
-            throw new Error("Date is required for normal scheduling.");
-        }
+			if (!date) {
+				throw new Error("Date is required for normal scheduling.");
+			}
 
-        const scheduleDate = typeof date === 'string' ? new Date(date) : date;
+			const scheduleDate = typeof date === 'string' ? new Date(date) : date;
 
-        if (!(scheduleDate instanceof Date) || isNaN(scheduleDate.getTime())) {
-            throw new Error("Invalid date provided for scheduling.");
-        }
+			if (!(scheduleDate instanceof Date) || isNaN(scheduleDate.getTime())) {
+				throw new Error("Invalid date provided for scheduling.");
+			}
 
-        const rrule = new RRule({
-            freq: RRule.DAILY,
-            count: 1,
-            dtstart: new Date(`${scheduleDate.toISOString().split('T')[0]}T${startTime}`),
-        });
+			const rrule = new RRule({
+				freq: RRule.DAILY,
+				count: 1,
+				dtstart: new Date(`${scheduleDate.toISOString().split('T')[0]}T${startTime}`),
+			});
 
-        const existingSchedule = await this.findOverlappingSchedule(mentorId, scheduleDate, startTime, endTime);
-        if (existingSchedule) {
-            throw new Error("The time slot overlaps with an existing schedule.");
-        }
+			const existingSchedule = await this.findOverlappingSchedule(mentorId, scheduleDate, startTime, endTime);
+			if (existingSchedule) {
+				throw new Error("The time slot overlaps with an existing schedule.");
+			}
 
-        const newScheduleData = new ScheduleTime({
-            scheduleType: 'normal',
-            recurrenceRule: rrule.toString(),
-            startTime,
-            endTime,
-            price,
-            mentorId: new Types.ObjectId(mentorId),
-            isBooked: false,
-            date: scheduleDate,
-        });
+			const newScheduleData = new ScheduleTime({
+				scheduleType: 'normal',
+				recurrenceRule: rrule.toString(),
+				startTime,
+				endTime,
+				price,
+				mentorId: new Types.ObjectId(mentorId),
+				isBooked: false,
+				date: scheduleDate,
+			});
 
-        const savedSchedule = await newScheduleData.save();
-        return [savedSchedule];
+			const savedSchedule = await newScheduleData.save();
+			return [savedSchedule];
+		}catch(error){
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw new Error("unable to fetch at this moment");
+		}
     }
 
     async scheduleWeeklyTime(scheduleData: IScheduleTime, mentorId: string): Promise<IScheduleTime[]> {
-        const { startDate, endDate, startTime, endTime, price, daysOfWeek } = scheduleData;
-
-        if (!startDate || !endDate || !daysOfWeek) {
-            throw new Error("Start date, end date, and days of week are required for weekly scheduling.");
-        }
-
-        const weekDays: Weekday[] = [RRule.SU, RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA];
-        const rrule = new RRule({
-            freq: RRule.WEEKLY,
-            dtstart: new Date(startDate),
-            until: new Date(endDate),
-            byweekday: daysOfWeek.map(day => weekDays[day])
-        });
-
-        const scheduledDates: IScheduleTime[] = [];
- 
-        for (const date of rrule.all()) {
-            const existingSchedule = await this.findOverlappingSchedule(mentorId, date, startTime, endTime);
-            if (existingSchedule) {
-                console.log(`Skipping overlapping schedule on ${date}`);
-                continue;
-            }
-
-            const newScheduleData = new ScheduleTime({
-                scheduleType: 'weekly',
-                recurrenceRule: rrule.toString(),
-                startTime,
-                endTime,
-                price,
-                mentorId: new Types.ObjectId(mentorId),
-                isBooked: false,
-                daysOfWeek,
-                date,
-                startDate,
-                endDate
-            });
-
-            const savedSchedule = await newScheduleData.save();
-            scheduledDates.push(savedSchedule);
-        }
-
-        return scheduledDates;
+        try{
+			const { startDate, endDate, startTime, endTime, price, daysOfWeek } = scheduleData;
+			if (!startDate || !endDate || !daysOfWeek) {
+				throw new Error("Start date, end date, and days of week are required for weekly scheduling.");
+			}
+			const weekDays: Weekday[] = [RRule.SU, RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA];
+			const rrule = new RRule({
+				freq: RRule.WEEKLY,
+				dtstart: new Date(startDate),
+				until: new Date(endDate),
+				byweekday: daysOfWeek.map(day => weekDays[day])
+			});
+			const scheduledDates: IScheduleTime[] = [];
+			for (const date of rrule.all()) {
+				const existingSchedule = await this.findOverlappingSchedule(mentorId, date, startTime, endTime);
+				if (existingSchedule) {
+					console.log(`Skipping overlapping schedule on ${date}`);
+					continue;
+				}
+				const newScheduleData = new ScheduleTime({
+					scheduleType: 'weekly',
+					recurrenceRule: rrule.toString(),
+					startTime,
+					endTime,
+					price,
+					mentorId: new Types.ObjectId(mentorId),
+					isBooked: false,
+					daysOfWeek,
+					date,
+					startDate,
+					endDate
+				});
+				const savedSchedule = await newScheduleData.save();
+				scheduledDates.push(savedSchedule);
+			}
+			return scheduledDates;
+		}catch(error){
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw error
+		}
     }
 
     async scheduleCustomTime(scheduleData: IScheduleTime, mentorId: string): Promise<IScheduleTime[]> {
-        const { customDates, startTime, endTime, price } = scheduleData;
-
-        if (!customDates) {
-            throw new Error("Custom dates are required for custom scheduling.");
-        }
-
-        let dates: Date[];
-        try {
-            dates = JSON.parse(customDates).map((dateStr: string) => new Date(dateStr));
-        } catch (error) {
-            throw new Error("Invalid custom dates format. Expected a JSON string of dates.");
-        }
-
-        if (dates.length === 0) {
-            throw new Error("No valid dates provided.");
-        }
-
-        const scheduledDates: IScheduleTime[] = [];
-
-        for (const date of dates) {
-            const existingSchedule = await this.findOverlappingSchedule(mentorId, date, startTime, endTime);
-            if (existingSchedule) {
-                console.log(`Skipping overlapping schedule on ${date}`);
-                continue;
-            }
-
-            const newScheduleData = new ScheduleTime({
-                scheduleType: 'custom',
-                recurrenceRule: new RRule({
-                    freq: RRule.DAILY,
-                    count: 1,
-                    dtstart: date
-                }).toString(),
-                startTime,
-                endTime,
-                price,
-                mentorId: new Types.ObjectId(mentorId),
-                isBooked: false,
-                customDates,
-                date
-            });
-
-            const savedSchedule = await newScheduleData.save();
-            scheduledDates.push(savedSchedule);
-        }
-
-        return scheduledDates;
+        try{
+			const { customDates, startTime, endTime, price } = scheduleData;
+			if (!customDates) {
+				throw new Error("Custom dates are required for custom scheduling.");
+			}
+			let dates: Date[];
+			try {
+				dates = JSON.parse(customDates).map((dateStr: string) => new Date(dateStr));
+			} catch (error) {
+				throw new Error("Invalid custom dates format. Expected a JSON string of dates.");
+			}
+			if (dates.length === 0) {
+				throw new Error("No valid dates provided.");
+			}
+			const scheduledDates: IScheduleTime[] = [];
+			for (const date of dates) {
+				const existingSchedule = await this.findOverlappingSchedule(mentorId, date, startTime, endTime);
+				if (existingSchedule) {
+					console.log(`Skipping overlapping schedule on ${date}`);
+					continue;
+				}
+				const newScheduleData = new ScheduleTime({
+					scheduleType: 'custom',
+					recurrenceRule: new RRule({
+						freq: RRule.DAILY,
+						count: 1,
+						dtstart: date
+					}).toString(),
+					startTime,
+					endTime,
+					price,
+					mentorId: new Types.ObjectId(mentorId),
+					isBooked: false,
+					customDates,
+					date
+				});
+				const savedSchedule = await newScheduleData.save();
+				scheduledDates.push(savedSchedule);
+			}
+			return scheduledDates;
+		}catch(error){
+			if (error instanceof Error) {
+				console.log(error.message);
+			}
+			throw error
+		}
     }
 
 	private async findOverlappingSchedule(
@@ -429,10 +475,6 @@ class MentorService {
             ]
         });
     }
-	
-	
-	
-	
 
 	async getScheduledSlots(accessToken:string): Promise< ISlotsList[] | undefined> {
 		try {
@@ -458,6 +500,13 @@ class MentorService {
 
 	async deleteScheduledSlot(id:string): Promise< boolean> {
 		try {
+			const slot = await this.mentorRepository.findScheduleById(id)
+			if(slot?.isBooked == true){
+				throw new Error("This slots already booked.")
+			}
+			if (!slot) {
+				return false;
+			}
 			const deleteSlot = await this.mentorRepository.deleteScheduledSlot(id)
 			if(deleteSlot){
 				return true
@@ -511,7 +560,8 @@ class MentorService {
 
 	async editProfile(name: string, mentorId: string, imageUrl?: string): Promise<void> {
 		try {
-			const mentorDataUpdate = await this.mentorRepository.updateMentor(name,mentorId, imageUrl);
+			await this.mentorRepository.updateMentor(name,mentorId, imageUrl);
+			await this.mentorRepository.updateMentorVerify(name,mentorId, imageUrl);
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(error.message);
@@ -522,14 +572,15 @@ class MentorService {
 
 	async changePassword(oldPassword:string,newPassword:string,mentorId:string): Promise<boolean> {
 		try {
-			const mentorData = await this.mentorRepository.findMentorBtId(mentorId)
+			const mentorData = await this.mentorRepository.findMentorById(mentorId)
 			if(mentorData?.password){
 				const isPasswordValid = await HashedPassword.comparePassword(
 					oldPassword,
 					mentorData.password
 				)
 				if(isPasswordValid){
-					const changePassword = await this.mentorRepository.changePassword(mentorId,newPassword)
+					const hashedPassword = await HashedPassword.hashPassword(newPassword);
+					const changePassword = await this.mentorRepository.changePassword(mentorId,hashedPassword)
 					if(changePassword){
 						return changePassword
 					}else{
@@ -577,7 +628,7 @@ class MentorService {
 
 	async endConnection(bookedId: string): Promise<void> {
 		try {
-			const endConnection = await this.mentorRepository.endConnection(bookedId);
+			await this.mentorRepository.endConnection(bookedId);
 			return 
 		} catch (error) {
 			if (error instanceof Error) {
@@ -602,7 +653,11 @@ class MentorService {
 
 	async submitQAAnswer(questionId:string,mentorId:string,answer:string): Promise<void> {
 		try {
-			const submitAnswer = await this.mentorRepository.submitQAAnswer(questionId,mentorId,answer);
+			const submitAnswer = await this.mentorRepository.findQaById(questionId)
+			if(!submitAnswer){
+				throw new Error("An unexpected error occurred.");
+			}
+			await this.mentorRepository.submitQAAnswer(submitAnswer,mentorId,answer);
 			return 
 		} catch (error) {
 			if (error instanceof Error) {
@@ -614,7 +669,7 @@ class MentorService {
 
 	async editQAAnswer(questionId:string,mentorId:string,answer:string): Promise<void> {
 		try {
-			const editAnswer = await this.mentorRepository.editQAAnswer(questionId,mentorId,answer);
+			await this.mentorRepository.editQAAnswer(questionId,mentorId,answer);
 			return 
 		} catch (error) {
 			if (error instanceof Error) {
@@ -626,7 +681,8 @@ class MentorService {
 
 	async createComminityMeet(formData:ICOmmunityFormData,mentorId:string,imageUrl:string): Promise<void> {
 		try {
-			const editAnswer = await this.mentorRepository.createComminityMeet(formData,mentorId,imageUrl);
+			const RoomId = await CommunityRoomId()
+			const editAnswer = await this.mentorRepository.createComminityMeet(formData,mentorId,RoomId,imageUrl);
 			return 
 		} catch (error) {
 			if (error instanceof Error) {
@@ -680,18 +736,13 @@ class MentorService {
 	  ): Promise<RatingResponse> {
 		try {
 		  const skip = (page - 1) * limit;
-		  
-		  // Get all data from repository in a single call
 		  const { ratings, totalCount, ratingCounts } = await this.mentorRepository.getMentorRating(
 			mentorId, 
 			page, 
 			limit, 
 			skip
 		  );
-		  
-		  // Calculate total pages
 		  const totalPages = Math.ceil(totalCount / limit);
-	
 		  return {
 			ratings,
 			totalCount,

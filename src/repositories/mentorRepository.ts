@@ -17,27 +17,16 @@ import Rating, { IRating } from "../models/ratingModel";
 import NotificationModel, { INotification } from "../models/notificationModel";
 import { EnhancedCommunityMeet, ICOmmunityFormData, ISlotMentor, ISlotsList, MentorVerification, MentorVerifyData, RatingCounts, RatingResponse } from "../types/servicesInterfaces/IMentor";
 import { ITransaction } from "../types/servicesInterfaces/IMentee";
+import { IMentorRepository } from "../interfaces/mentor/IMentorRepository";
 
 
 
 
-class MentorRepository {
+class MentorRepository implements IMentorRepository{
 	async mentorRegister(
-		mentorData: Partial<IMentor>
+		mentorData: Partial<IMentor>,hashedPassword:string,otp:string
 	): Promise<IMentorSchema | undefined> {
 		try {
-			if (!mentorData.password) {
-				throw new Error("Password is required");
-			}
-			if (!mentorData.email) {
-				throw new Error("Email is required");
-			}
-			const hashedPassword = await HashedPassword.hashPassword(
-				mentorData.password
-			);
-			const otp = generateOTP();
-			await sendVerifyMail(mentorData.email, otp);
-
 			const updateData = {
 				...mentorData,
 				password: hashedPassword,
@@ -73,17 +62,19 @@ class MentorRepository {
 		}
 	}
 
-	async verifyOtp(email: string, otp: string): Promise<IMentor> {
+	async findMentorTempByEmail(email: string): Promise<IMentorSchema | null> {
 		try {
 			const mentorData = await MentorTempModel.findOne({ email });
+			return mentorData;
+		} catch (error: any) {
+			console.error(`Error in findMentorByEmail: ${error.message}`);
+			throw new Error(`Unable to find mentor: ${error.message}`);
+		}
+	}
+	
 
-			if (!mentorData) {
-				throw new Error("Time has been expired");
-			}
-
-			if (mentorData.otp !== parseFloat(otp)) {
-				throw new Error("Otp is not matching");
-			}
+	async verifyOtp(mentorData:IMentorSchema): Promise<IMentor> {
+		try {
 			const newMentor = new Mentor({
 				email: mentorData.email,
 				name: mentorData.name,
@@ -94,9 +85,6 @@ class MentorRepository {
 			});
 
 			const savedmentor = await newMentor.save();
-
-			await MentorTempModel.deleteOne({ email });
-
 			return savedmentor;
 		} catch (error: unknown) {
 			if (error instanceof Error) {
@@ -108,10 +96,17 @@ class MentorRepository {
 		}
 	}
 
-	async resendOtpVerify(email: string): Promise<IMentor | null> {
+	async removeTempMentor(email: string): Promise<void> {
 		try {
-			let otp = generateOTP();
-			await sendVerifyMail(email, otp);
+			await MentorTempModel.deleteOne({ email });
+		} catch (error: any) {
+			console.error(`Error in  ${error.message}`);
+			throw new Error(`Unable  ${error.message}`);
+		}
+	}
+
+	async resendOtpVerify(email: string,otp:string): Promise<IMentor | null> {
+		try {
 			const resetOtp = await MentorTempModel.findOneAndUpdate(
 				{ email },
 				{ $set: { otp: otp } }
@@ -129,11 +124,9 @@ class MentorRepository {
 
 
 	async forgotPasswordWithEmail(
-		mentorData: IMentor
+		mentorData: IMentor,otp:string
 	): Promise<IMentor | undefined> {
 		try {
-			const otp = generateOTP();
-			await sendVerifyMail(mentorData.email, otp);
 			const updateData = {
 				name: mentorData.name,
 				email: mentorData.email,
@@ -171,7 +164,6 @@ class MentorRepository {
 			if (mentorData.otp !== parseFloat(otp)) {
 				throw new Error("Otp is not matching");
 			}
-			await MentorTempModel.deleteOne({ email });
 			return mentorData;
 		} catch (error: unknown) {
 			if (error instanceof Error) {
@@ -183,20 +175,12 @@ class MentorRepository {
 		}
 	}
 
-	async reserPassword(
-		email: string,
-		password: string
+	async resetPassword(
+		mentor:IMentor,hashedPassword:string
 	): Promise<boolean | undefined> {
 		try {
-			const mentor = await Mentor.findOne({ email });
-			if (!mentor) {
-				return false;
-			}
-			const hashedPassword = await HashedPassword.hashPassword(password);
-
 			mentor.password = hashedPassword;
 			await mentor.save();
-
 			return true;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -269,7 +253,7 @@ class MentorRepository {
         }
     }
 
-	async findMentorBtId(id: string): Promise<IMentor | undefined> {
+	async findMentorById(id: string): Promise<IMentor | undefined> {
 		try {
 			const mentorData = await Mentor.findById({ _id: id });
 			if (!mentorData) {
@@ -362,19 +346,20 @@ class MentorRepository {
 	}
 	
 
-	async deleteScheduledSlot(id: string): Promise<boolean> {
-		if (!Types.ObjectId.isValid(id)) {
-			return false;
-		}
-
+	async findScheduleById(id: string): Promise<IScheduleTime | null> {
 		try {
 			const slotData = await ScheduleTime.findById(id);
-			if(slotData?.isBooked == true){
-				throw new Error("This slots already booked.")
+			return slotData;
+		} catch (error) {
+			if (error instanceof Error) {
+				console.log(error.message);
 			}
-			if (!slotData) {
-				return false;
-			}
+			throw new Error("An unexpected error occurred.");
+		}
+	}
+
+	async deleteScheduledSlot(id: string): Promise<boolean> {
+		try {
 			const removeSlot = await ScheduleTime.findByIdAndDelete(id);
 			return true;
 		} catch (error) {
@@ -469,10 +454,6 @@ class MentorRepository {
 		imageUrl?: string
 	  ): Promise<void> {
 		try {
-		  if (!Types.ObjectId.isValid(mentorId)) {
-			throw new Error("Invalid mentorId provided.");
-		  }
-	  
 		  const updatedMentor = await Mentor.findByIdAndUpdate(
 			mentorId,
 			{ name },
@@ -482,7 +463,20 @@ class MentorRepository {
 		  if (!updatedMentor) {
 			throw new Error("Mentor not found.");
 		  }
-	  
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.error(error.message);
+		  }
+		  throw new Error("An unexpected error occurred.");
+		}
+	  }
+
+	  async updateMentorVerify(
+		name: string,
+		mentorId: string,
+		imageUrl?: string
+	  ): Promise<void> {
+		try {
 		  const updatedMentorVerify = await MentorVerifyModel.findOneAndUpdate(
 			{ mentorId },
 			{
@@ -506,11 +500,9 @@ class MentorRepository {
 
 	  async changePassword(mentorId: string, newPassword: string): Promise<boolean> {
 		try {
-		  const hashedPassword = await HashedPassword.hashPassword(newPassword);
-	  
 		  const updatePassword = await Mentor.findByIdAndUpdate(
 			mentorId, 
-			{ password: hashedPassword }, 
+			{ password: newPassword }, 
 			{ new: true } 
 		  );
 		  if (!updatePassword) {
@@ -577,7 +569,7 @@ class MentorRepository {
 	  
 	async allowConnection(bookedId:string): Promise<void> {
 		try {
-			const setConnection = await BookedSlots.findByIdAndUpdate(
+			await BookedSlots.findByIdAndUpdate(
 				bookedId,                
 				{ isAllowed: true },      
 				{ new: true }              
@@ -593,7 +585,7 @@ class MentorRepository {
 
 	  async endConnection(bookedId:string): Promise<void> {
 		try {
-			const setConnection = await BookedSlots.findByIdAndUpdate(
+			await BookedSlots.findByIdAndUpdate(
 				bookedId,                
 				{ isAllowed: false,isAttended : true,status : timeSheduleStatus.COMPLETED  },
 				{ new: true }              
@@ -634,15 +626,20 @@ class MentorRepository {
 	}
 	
 	
-	
-
-	  async submitQAAnswer(questionId:string,mentorId:string,answer:string): Promise<void> {
+	async findQaById(id:string): Promise<IQa | null> {
 		try {
+			const qa = await QA.findById(id)
+			return qa
+		} catch (error) {
+		  if (error instanceof Error) {
+			console.log(error.message);
+		  }
+		  throw new Error('An unexpected error occurred.');
+		}
+	  }
 
-			const submitAnswer = await QA.findById(questionId)
-			if(!submitAnswer){
-				throw new Error("no question found")
-			}
+	  async submitQAAnswer(submitAnswer:IQa,mentorId:string,answer:string): Promise<void> {
+		try {
 			submitAnswer.reply = answer
 			submitAnswer.isAnswered = true
 			submitAnswer.mentorId = mentorId as unknown as Types.ObjectId
@@ -658,7 +655,6 @@ class MentorRepository {
 	
 	  async editQAAnswer(questionId:string,mentorId:string,answer:string): Promise<void> {
 		try {
-
 			const submitAnswer = await QA.findByIdAndUpdate(questionId)
 			if(!submitAnswer){
 				throw new Error("no question found")
@@ -675,9 +671,8 @@ class MentorRepository {
 		}
 	  }
 
-	  async createComminityMeet(formData:ICOmmunityFormData,mentorId:string,imageUrl:string): Promise<void> {
+	  async createComminityMeet(formData:ICOmmunityFormData,mentorId:string,RoomId:string,imageUrl:string): Promise<void> {
 		try {
-			const RoomId = await CommunityRoomId()
 			const communityMeet = new CommunityMeet({
 				date:formData.date,
 				startTime:formData.startTime,
@@ -818,17 +813,14 @@ class MentorRepository {
 			}
 			const mentorverifyId = mentor._id;
 	  
-			// Get paginated ratings
 			const ratings = await Rating.find({ mentor: mentorverifyId })
 			  .populate('mentee', 'name')
 			  .skip(skip)
 			  .limit(limit)
 			  .exec();
 	  
-			// Get total count
 			const totalCount = await Rating.countDocuments({ mentor: mentorverifyId });
 	  
-			// Get rating counts
 			const ratingCounts = await Rating.aggregate([
 			  { $match: { mentor: mentorverifyId } },
 			  {
@@ -839,7 +831,6 @@ class MentorRepository {
 			  }
 			]);
 	  
-			// Format rating counts
 			const formattedRatingCounts: RatingCounts = {
 			  1: 0,
 			  2: 0,

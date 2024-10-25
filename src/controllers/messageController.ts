@@ -4,9 +4,10 @@ import Message from "../models/messageModel";
 import MentorVerifyModel from "../models/mentorValidate";
 import Chat from "../models/chatModel";
 import NotificationModel from "../models/notificationModel";
+import { IMessageService } from "../interfaces/message/IMessageService";
 
 class MessageController {
-	constructor(private messageService: MessageService) {}
+	constructor(private messageService: IMessageService) {}
 
 	async getAllMessage(req: Request, res: Response): Promise<void> {
 		try {
@@ -25,14 +26,10 @@ class MessageController {
             const mentee = (req as any).mentee;
 
             if (!content || !chatId) {
-                console.log("Invalid data passed into request");
                 res.status(400).json({ error: "Invalid data. Content and chatId are required." });
                 return;
             }
-            
-
             const populatedMessage = await this.messageService.sendMessage(content, chatId, mentee.id);
-
             if (!populatedMessage) {
                 res.status(404).json({ error: "Message not found after saving" });
                 return;

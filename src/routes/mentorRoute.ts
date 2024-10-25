@@ -15,105 +15,36 @@ const mentorRepository = new MentorRepository();
 const mentorService = new MentorService(mentorRepository);
 const mentorController = new MentorController(mentorService);
 
-router.post("/register", async (req, res) =>
-	mentorController.mentorRegister(req, res)
-);
-router.post("/verify-otp", async (req, res) =>
-	mentorController.mentorOtp(req, res)
-);
-router.post("/resend-otp", async (req, res) =>
-	mentorController.resendOtp(req, res)
-);
-router.post("/login", async (req, res) =>
-	mentorController.mentorLogin(req, res)
-);
-router.post("/forgot-password", async (req, res) =>
-	mentorController.resetWithEmail(req, res)
-);
-router.post("/reset-password-verify-otp", async (req, res) =>
-	mentorController.resetPassswordOtp(req, res)
-);
-router.post("/reset-password-reset", async (req, res) =>
-	mentorController.resetPasssword(req, res)
-);
-router.get("/checkVerify", async (req, res) =>
-	mentorController.verifyCheck(req, res)
-);
-router.post("/verify-mentor", multipleUpload, async (req, res) =>
-	mentorController.verifymentor(req, res)
-);
-router.post("/auth/refresh-token", async (req, res) =>
-	mentorController.createNewRefreshToken(req, res)
-);
-router.post("/scheduleTime", mentorAuthMiddleware, async (req, res) =>
-	mentorController.scheduleTimeForMentor(req, res)
-);
-router.get("/getSlots", mentorAuthMiddleware, async (req, res) =>
-	mentorController.getScheduledSlots(req, res)
-);
-router.delete("/deleteSlot/:id", mentorAuthMiddleware, async (req, res) =>
-	mentorController.deleteScheduledSlot(req, res)
-);
-router.get("/getBookedSlots", mentorAuthMiddleware, async (req, res) =>
-	mentorController.getBookedSlots(req, res)
-);
-router.get("/getMentorData", mentorAuthMiddleware, async (req, res) =>
-	mentorController.getMentorData(req, res)
-);
-router.put(
-	"/editProfile",
-	mentorAuthMiddleware,
-	singleImageUpload,
-	async (req, res) => mentorController.editProfile(req, res)
-);
-router.put("/changePassword", mentorAuthMiddleware, async (req, res) =>
-	mentorController.changePassword(req, res)
-);
-router.put("/cancelSlot", mentorAuthMiddleware, async (req, res) =>
-	mentorController.cancelSlot(req, res)
-);
-router.post("/allowConnection", mentorAuthMiddleware, async (req, res) =>
-	mentorController.allowConnection(req, res)
-);
-router.post("/endConnection", mentorAuthMiddleware, async (req, res) =>
-	mentorController.endConnection(req, res)
-);
-router.get("/getAllQuestions", mentorAuthMiddleware, async (req, res) =>
-	mentorController.getAllQuestions(req, res)
-);
-router.post("/submitAnswer", mentorAuthMiddleware, async (req, res) =>
-	mentorController.submitQAAnswer(req, res)
-);
-router.put("/editAnswer", mentorAuthMiddleware, async (req, res) =>
-	mentorController.editQAAnswer(req, res)
-);
-router.post(
-	"/createComminityMeet",
-	mentorAuthMiddleware,
-	singleImageUpload,
-	async (req, res) => mentorController.createComminityMeet(req, res)
-);
-router.get("/getAllCommunityMeet", mentorAuthMiddleware, async (req, res) =>
-	mentorController.getAllCommunityMeet(req, res)
-);
-router.get("/getMyCommunityMeet", mentorAuthMiddleware, async (req, res) =>
-	mentorController.getMyCommunityMeet(req, res)
-);
-router.put(
-	"/cancelCommunityMeet/:meetId",
-	mentorAuthMiddleware,
-	async (req, res) => mentorController.cancelCommunityMeet(req, res)
-);
-router.get("/getRatings", mentorAuthMiddleware, async (req, res) =>
-	mentorController.getMentorRating(req, res)
-);
+router.post("/register", mentorController.mentorRegister.bind(mentorController));
+router.post("/verify-otp", mentorController.mentorOtp.bind(mentorController));
+router.post("/resend-otp", mentorController.resendOtp.bind(mentorController));
+router.post("/login", mentorController.mentorLogin.bind(mentorController));
+router.post("/forgot-password", mentorController.resetWithEmail.bind(mentorController));
+router.post("/reset-password-verify-otp", mentorController.resetPassswordOtp.bind(mentorController));
+router.post("/reset-password-reset", mentorController.resetPasssword.bind(mentorController));
+router.get("/checkVerify", mentorController.verifyCheck.bind(mentorController));
+router.post("/verify-mentor", multipleUpload, mentorController.verifymentor.bind(mentorController));
+router.post("/auth/refresh-token", mentorController.createNewRefreshToken.bind(mentorController));
+router.post("/scheduleTime", mentorAuthMiddleware, mentorController.scheduleTimeForMentor.bind(mentorController));
+router.get("/getSlots", mentorAuthMiddleware, mentorController.getScheduledSlots.bind(mentorController));
+router.delete("/deleteSlot/:id", mentorAuthMiddleware, mentorController.deleteScheduledSlot.bind(mentorController));
+router.get("/getBookedSlots", mentorAuthMiddleware, mentorController.getBookedSlots.bind(mentorController));
+router.get("/getMentorData", mentorAuthMiddleware, mentorController.getMentorData.bind(mentorController));
+router.put("/editProfile",mentorAuthMiddleware,singleImageUpload, mentorController.editProfile.bind(mentorController));
+router.put("/changePassword", mentorAuthMiddleware, mentorController.changePassword.bind(mentorController));
+router.put("/cancelSlot", mentorAuthMiddleware, mentorController.cancelSlot.bind(mentorController));
+router.post("/allowConnection", mentorAuthMiddleware, mentorController.allowConnection.bind(mentorController));
+router.post("/endConnection", mentorAuthMiddleware, mentorController.endConnection.bind(mentorController));
+router.get("/getAllQuestions", mentorAuthMiddleware, mentorController.getAllQuestions.bind(mentorController));
+router.post("/submitAnswer", mentorAuthMiddleware, mentorController.submitQAAnswer.bind(mentorController));
+router.put("/editAnswer", mentorAuthMiddleware, mentorController.editQAAnswer.bind(mentorController));
+router.post("/createComminityMeet",mentorAuthMiddleware,singleImageUpload, mentorController.createComminityMeet.bind(mentorController));
+router.get("/getAllCommunityMeet", mentorAuthMiddleware, mentorController.getAllCommunityMeet.bind(mentorController));
+router.get("/getMyCommunityMeet", mentorAuthMiddleware, mentorController.getMyCommunityMeet.bind(mentorController));
+router.put("/cancelCommunityMeet/:meetId",mentorAuthMiddleware, mentorController.cancelCommunityMeet.bind(mentorController));
+router.get("/getRatings", mentorAuthMiddleware, mentorController.getMentorRating.bind(mentorController));
+router.get("/getNotifications", mentorAuthMiddleware, mentorController.getNotifications.bind(mentorController));
+router.put("/readChat/:id", mentorAuthMiddleware, mentorController.markReadChat.bind(mentorController));
 
-router.get("/getNotifications", mentorAuthMiddleware, async (req, res) =>
-	mentorController.getNotifications(req, res)
-);
-
-router.put("/readChat/:id", mentorAuthMiddleware, async (req, res) =>
-	mentorController.markReadChat(req, res)
-);
 
 export default router;

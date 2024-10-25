@@ -11,14 +11,8 @@ const messageRepository = new MessageRepository();
 const messageService = new MessageService(messageRepository);
 const messageController = new MessageController(messageService);
 
-router.get("/:chatId", async (req, res) =>
-	messageController.getAllMessage(req, res)
-);
-router.post("/", menteeAuthMiddleware, async (req, res) =>
-	messageController.sendMessage(req, res)
-);
-router.post("/mentor", mentorAuthMiddleware, async (req, res) =>
-	messageController.mentorSendMessage(req, res)
-);
+router.get("/:chatId", messageController.getAllMessage.bind(messageController));
+router.post("/", menteeAuthMiddleware, messageController.sendMessage.bind(messageController));
+router.post("/mentor", mentorAuthMiddleware, messageController.mentorSendMessage.bind(messageController));
 
 export default router;

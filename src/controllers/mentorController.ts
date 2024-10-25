@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import MentorService from "../services/mentorService";
 import cloudinary from "../utils/cloudinary";
 import fs from 'fs'
 import { IScheduleTime } from "../models/mentorTimeSchedule";
 import { FileUrls, UploadResult } from "../types/servicesInterfaces/ICloudinary";
 import { MentorVerifyFiles } from "../types/servicesInterfaces/IMentor";
+import { IMentorService } from "../interfaces/mentor/IMentorService";
 
 
 
@@ -26,7 +26,7 @@ function isSupportedFileType(file: Express.Multer.File, fieldName: string): bool
 
 
 class MentorController{
-    constructor(private mentorService : MentorService){}
+    constructor(private mentorService : IMentorService){}
 
     async mentorRegister(req:Request,res:Response) : Promise<void>{
         try {
@@ -53,10 +53,6 @@ class MentorController{
     async mentorOtp(req: Request, res: Response): Promise<void> {
         try {
           const otpData = req.body;
-          if (!otpData.email || !otpData.otp) {
-            res.status(400).json({ message: 'OTP are required' });
-            return;
-          }
           const otpVerified = await this.mentorService.verifyOtp(otpData);
           if (otpVerified) {
             res.status(200).json({ message: 'OTP verified successfully', accessToken:otpVerified.accessToken,refreshToken:otpVerified.refreshToken });
@@ -121,10 +117,6 @@ class MentorController{
     async resetWithEmail(req: Request, res: Response): Promise<void> {
         try {
             const email = req.body.email;
-            if (!email) {
-                res.status(400).json({ message: "Email is required." });
-                return;
-            }
             const verifyEmail = await this.mentorService.resetWithEmail(email);
             if(verifyEmail){
                 res.status(200).json({ message:"Password reset link sent to your email." });
@@ -147,10 +139,6 @@ class MentorController{
     async resetPassswordOtp(req:Request,res:Response):Promise<void>{
         try{
             const otpData = req.body;
-            if (!otpData.email || !otpData.otp) {
-            res.status(400).json({ message: 'Email and OTP are required' });
-            return;
-            }
             const otpVerified = await this.mentorService.forgetPasswordVerifyOtp(otpData);
             if (otpVerified) {
                 res.status(200).json({ message: 'OTP verified successfully',email:otpVerified.email});
@@ -226,8 +214,6 @@ class MentorController{
                 experienceCertificate: files['experienceCertificate'] ? files['experienceCertificate'][0] : undefined,
                 image: files['image'] ? files['image'][0] : undefined
             };
-    
-            // Validate file types according to their field names
             for (const [key, file] of Object.entries(mentorFiles)) {
                 if (file && !isSupportedFileType(file, key)) {
                     res.status(400).json({ message: `${key} has an unsupported file type.` });
@@ -264,8 +250,6 @@ class MentorController{
             });
     
             const isVerified = await this.mentorService.verifyMentor({ ...mentorData, fileUrls }, token);
-    
-            // Clean up files
             await Promise.all(
                 Object.keys(mentorFiles).map(async (key) => {
                     const file = mentorFiles[key as keyof MentorVerifyFiles];
@@ -298,9 +282,6 @@ class MentorController{
     async createNewRefreshToken(req:Request,res:Response):Promise<void>{
         try{
             const { refreshToken } = req.body;
-            if (!refreshToken) {
-                throw new Error("Something went wrong please try again.")
-            }
             const response = await this.mentorService.createNewRefreshToken(refreshToken)
             if(response){
                 res.status(201).json({message:"Success",accessToken:response.accessToken,refreshToken:response.refreshToken})
@@ -323,8 +304,6 @@ class MentorController{
         try {
             const mentorId = (req as any).mentor.id;
             const scheduleData: IScheduleTime = req.body;
-            console.log("Scheduling data:", scheduleData);
-
             let scheduleTimes: IScheduleTime[];
 
             switch (scheduleData.scheduleType) {
@@ -348,11 +327,9 @@ class MentorController{
             }
         } catch (error) {
             if (error instanceof Error) {
-                console.log("333333333333333333333333333")
                 console.error('Error during time scheduling:', error.message);
                 res.status(400).json({ message: error.message });
             } else {
-                console.log("444444444444444444444444444")
                 console.error('Unknown error during time scheduling:', error);
                 res.status(500).json({ message: 'Internal server error' });
             }
@@ -488,7 +465,7 @@ class MentorController{
     async cancelSlot(req:Request,res:Response):Promise<void>{
         try{
             const slotId = req.body.id
-            const cancelSlot = await this.mentorService.cancelSlot(slotId)
+            await this.mentorService.cancelSlot(slotId)
             res.status(200).json({message:"Slot cancelled successfully"})
         }catch(error){
             if (error instanceof Error) {
@@ -520,7 +497,7 @@ class MentorController{
     async endConnection(req:Request,res:Response):Promise<void>{
         try{
             const bookedId = req.body.bookedId
-            const endConnection = await this.mentorService.endConnection(bookedId)
+            await this.mentorService.endConnection(bookedId)
             res.status(200).json({message:"Success"})
         }catch(error){
             if (error instanceof Error) {
