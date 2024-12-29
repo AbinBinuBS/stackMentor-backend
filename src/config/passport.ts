@@ -21,7 +21,7 @@ passport.use(
 		{
 			clientID: process.env.CLIENT_ID as string,
 			clientSecret: process.env.CLIENT_SECRET as string,
-			callbackURL: "https://999bookstore.online/auth/callback",
+			callbackURL: "https://stackmentor.shop/auth/callback",
 			passReqToCallback: true,
 		},
 		function (

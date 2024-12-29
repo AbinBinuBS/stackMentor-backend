@@ -11,12 +11,12 @@ class adminController {
 			const adminData = await this.adminService.adminLogin(admin);
 			if (adminData) {
 				res
-					.status(201)
-					.json({
-						message: SuccessMessages.Success,
-						accessToken: adminData.accessToken,
-						refreshToken: adminData.refreshToken,
-					});
+				.status(201)
+				.json({
+					message: SuccessMessages.Success,
+					accessToken: adminData.accessToken,
+					refreshToken: adminData.refreshToken,
+				});
 			}
 		} catch (error) {
 			if (error instanceof Error) {

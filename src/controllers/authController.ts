@@ -32,7 +32,7 @@ export const authSuccess = async (req: AuthenticatedRequest, res: Response) => {
 	try {
 		const email = req.user.email;
 		const checkMailResponse = await axios.post(
-			"https://999bookstore.online/api/mentees/checkMail",
+			"https://stackmentor.shop/api/mentees/checkMail",
 			{ email }
 		);
 		if (checkMailResponse.data.emailExists) {
@@ -44,7 +44,7 @@ export const authSuccess = async (req: AuthenticatedRequest, res: Response) => {
 		} else {
 			const userName = req.user.displayName;
 			const storeMail = await axios.post(
-				"https://999bookstore.online/api/mentees/googleRegister",
+				"https://stackmentor.shop/api/mentees/googleRegister",
 				{ userName, password: "123456", email }
 			);
 			if (storeMail) {
@@ -61,5 +61,5 @@ export const authSuccess = async (req: AuthenticatedRequest, res: Response) => {
 };
 
 export const authFailure = (req: Request, res: Response) => {
-	res.redirect("http://localhost:5173/login");
+	res.redirect("https://stack-mentor.vercel.app/login");
 };
